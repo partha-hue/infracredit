@@ -70,7 +70,7 @@ export async function GET(req) {
                   { expiresIn: '7d' }
             );
 
-            const redirectUrl = new URL('/auth/google-success', req.url);
+            const redirectUrl = new URL('/api/auth/google-success', req.url);
             redirectUrl.searchParams.set('token', token);
 
             return NextResponse.redirect(redirectUrl);
