@@ -3,6 +3,9 @@ import bcrypt from 'bcryptjs';
 import Owner from '@/models/Owner';
 import connectDB from '@/lib/mongodb';
 
+// Add this line to prevent static generation
+export const dynamic = 'force-dynamic';
+
 export async function POST(req) {
       try {
             await connectDB();
@@ -17,7 +20,24 @@ export async function POST(req) {
                   );
             }
 
-            const normalizedEmail = email.toLowerCase();
+            // Email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                  return NextResponse.json(
+                        { error: 'Invalid email format' },
+                        { status: 400 }
+                  );
+            }
+
+            // Password strength validation
+            if (password.length < 6) {
+                  return NextResponse.json(
+                        { error: 'Password must be at least 6 characters' },
+                        { status: 400 }
+                  );
+            }
+
+            const normalizedEmail = email.toLowerCase().trim();
 
             /* ---------- Check Existing Owner ---------- */
             const existingOwner = await Owner.findOne({ email: normalizedEmail });
@@ -33,10 +53,10 @@ export async function POST(req) {
 
             /* ---------- Create Owner ---------- */
             const owner = await Owner.create({
-                  shopName,
-                  ownerName,
+                  shopName: shopName.trim(),
+                  ownerName: ownerName.trim(),
                   email: normalizedEmail,
-                  passwordHash, // must match schema
+                  passwordHash,
                   provider: 'local',
             });
 
@@ -44,11 +64,21 @@ export async function POST(req) {
                   {
                         success: true,
                         ownerId: owner._id,
+                        message: 'Registration successful! Please login.',
                   },
                   { status: 201 }
             );
       } catch (err) {
             console.error('REGISTER ERROR:', err);
+
+            // Handle MongoDB duplicate key error
+            if (err.code === 11000) {
+                  return NextResponse.json(
+                        { error: 'Email already registered' },
+                        { status: 409 }
+                  );
+            }
+
             return NextResponse.json(
                   { error: 'Internal server error' },
                   { status: 500 }
