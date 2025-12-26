@@ -5,19 +5,18 @@ import connectDB from '@/lib/mongodb';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req) {
+export async function GET(request) {
       try {
-            const url = new URL(req.url);
+            const url = new URL(request.url);
             const origin = url.origin;
 
-            const redirectUriEnv = process.env.GOOGLE_REDIRECT_URI;
-            const redirectUri = redirectUriEnv && redirectUriEnv.trim().length > 0
-                  ? redirectUriEnv
-                  : `${origin}/api/auth/google/callback`;
+            const redirectUri =
+                  (process.env.GOOGLE_REDIRECT_URI && process.env.GOOGLE_REDIRECT_URI.trim()) ||
+                  `${origin}/api/auth/google/callback`;
 
             const code = url.searchParams.get('code');
             if (!code) {
-                  return NextResponse.redirect(new URL('/?google=error', req.url));
+                  return NextResponse.redirect(new URL('/?google=error', request.url));
             }
 
             const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -35,7 +34,7 @@ export async function GET(req) {
             const tokenJson = await tokenRes.json();
             if (!tokenRes.ok) {
                   console.error('Token exchange error:', tokenJson);
-                  return NextResponse.redirect(new URL('/?google=error', req.url));
+                  return NextResponse.redirect(new URL('/?google=error', request.url));
             }
 
             const payload = JSON.parse(
@@ -61,7 +60,7 @@ export async function GET(req) {
 
             if (!process.env.JWT_SECRET) {
                   console.error('JWT_SECRET not configured');
-                  return NextResponse.redirect(new URL('/?google=error', req.url));
+                  return NextResponse.redirect(new URL('/?google=error', request.url));
             }
 
             const token = jwt.sign(
@@ -70,12 +69,12 @@ export async function GET(req) {
                   { expiresIn: '7d' }
             );
 
-            const redirectUrl = new URL('/api/auth/google-success', req.url);
+            const redirectUrl = new URL('/auth/google-success', request.url);
             redirectUrl.searchParams.set('token', token);
 
             return NextResponse.redirect(redirectUrl);
       } catch (err) {
             console.error('Google callback error:', err);
-            return NextResponse.redirect(new URL('/?google=error', req.url));
+            return NextResponse.redirect(new URL('/?google=error', request.url));
       }
 }
