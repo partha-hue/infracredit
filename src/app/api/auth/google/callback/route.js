@@ -3,21 +3,22 @@ import jwt from 'jsonwebtoken';
 import Owner from '@/models/Owner';
 import connectDB from '@/lib/mongodb';
 
-// Add this line to force dynamic rendering
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
       try {
-            const { searchParams } = new URL(req.url);
-            const code = searchParams.get('code');
+            const url = new URL(req.url);
+            const origin = url.origin;
 
+            const redirectUriEnv = process.env.GOOGLE_REDIRECT_URI;
+            const redirectUri = redirectUriEnv && redirectUriEnv.trim().length > 0
+                  ? redirectUriEnv
+                  : `${origin}/api/auth/google/callback`;
+
+            const code = url.searchParams.get('code');
             if (!code) {
                   return NextResponse.redirect(new URL('/?google=error', req.url));
             }
-
-            // Use the same redirect_uri as in the auth request
-            const redirectUri = process.env.GOOGLE_REDIRECT_URI ||
-                  `${new URL(req.url).origin}/api/auth/google/callback`;
 
             const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
                   method: 'POST',
@@ -37,7 +38,6 @@ export async function GET(req) {
                   return NextResponse.redirect(new URL('/?google=error', req.url));
             }
 
-            // Decode the ID token
             const payload = JSON.parse(
                   Buffer.from(tokenJson.id_token.split('.')[1], 'base64').toString()
             );
@@ -46,10 +46,8 @@ export async function GET(req) {
             const name = payload.name || email.split('@')[0];
             const googleId = payload.sub;
 
-            // Connect to database
             await connectDB();
 
-            // Find or create owner
             let owner = await Owner.findOne({ email });
             if (!owner) {
                   owner = await Owner.create({
@@ -61,7 +59,6 @@ export async function GET(req) {
                   });
             }
 
-            // Generate JWT token
             if (!process.env.JWT_SECRET) {
                   console.error('JWT_SECRET not configured');
                   return NextResponse.redirect(new URL('/?google=error', req.url));
@@ -73,7 +70,6 @@ export async function GET(req) {
                   { expiresIn: '7d' }
             );
 
-            // Redirect to success page with token
             const redirectUrl = new URL('/auth/google-success', req.url);
             redirectUrl.searchParams.set('token', token);
 

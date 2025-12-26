@@ -1,20 +1,24 @@
 import { NextResponse } from 'next/server';
 
-// Add this line
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
+      const url = new URL(request.url);
+      const origin = url.origin; // https://infracredit-seven.vercel.app in production
+
+      const redirectUriEnv = process.env.GOOGLE_REDIRECT_URI;
+      const redirectUri = redirectUriEnv && redirectUriEnv.trim().length > 0
+            ? redirectUriEnv
+            : `${origin}/api/auth/google/callback`;
+
       const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
 
-      const redirectUri = process.env.GOOGLE_REDIRECT_URI ||
-            `${new URL(request.url).origin}/api/auth/google/callback`;
-
-      googleAuthUrl.searchParams.append('client_id', process.env.GOOGLE_CLIENT_ID);
-      googleAuthUrl.searchParams.append('redirect_uri', redirectUri);
-      googleAuthUrl.searchParams.append('response_type', 'code');
-      googleAuthUrl.searchParams.append('scope', 'email profile');
-      googleAuthUrl.searchParams.append('access_type', 'offline');
-      googleAuthUrl.searchParams.append('prompt', 'consent');
+      googleAuthUrl.searchParams.set('client_id', process.env.GOOGLE_CLIENT_ID);
+      googleAuthUrl.searchParams.set('redirect_uri', redirectUri);
+      googleAuthUrl.searchParams.set('response_type', 'code');
+      googleAuthUrl.searchParams.set('scope', 'openid email profile');
+      googleAuthUrl.searchParams.set('access_type', 'offline');
+      googleAuthUrl.searchParams.set('prompt', 'consent');
 
       return NextResponse.redirect(googleAuthUrl.toString());
 }
