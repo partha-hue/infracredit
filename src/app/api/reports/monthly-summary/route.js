@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Customer from '@/models/Customer';
 
+// Add this to prevent static generation
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
       await dbConnect();
 
