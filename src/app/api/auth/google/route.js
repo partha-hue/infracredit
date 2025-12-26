@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 
+// Add this line
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
       const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
 
-      // Use production URL for redirect_uri
       const redirectUri = process.env.GOOGLE_REDIRECT_URI ||
             `${new URL(request.url).origin}/api/auth/google/callback`;
 

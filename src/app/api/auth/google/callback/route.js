@@ -3,6 +3,9 @@ import jwt from 'jsonwebtoken';
 import Owner from '@/models/Owner';
 import connectDB from '@/lib/mongodb';
 
+// Add this line to force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 export async function GET(req) {
       try {
             const { searchParams } = new URL(req.url);
@@ -71,7 +74,7 @@ export async function GET(req) {
             );
 
             // Redirect to success page with token
-            const redirectUrl = new URL('api/auth/google-success', req.url);
+            const redirectUrl = new URL('/auth/google-success', req.url);
             redirectUrl.searchParams.set('token', token);
 
             return NextResponse.redirect(redirectUrl);
