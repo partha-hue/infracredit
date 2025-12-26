@@ -1,50 +1,18 @@
 import { NextResponse } from 'next/server';
-import Owner from '@/models/Owner';
-import connectDB from '@/lib/mongodb';
-import crypto from 'crypto';
-import jwt from 'jsonwebtoken';
 
-export async function POST(req) {
-      try {
-            await connectDB();
-            const { email, name, googleId } = await req.json();
+export async function GET(request) {
+      const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
 
-            if (!email || !name || !googleId) {
-                  return NextResponse.json(
-                        { error: 'email, name and googleId are required' },
-                        { status: 400 }
-                  );
-            }
+      // Use production URL for redirect_uri
+      const redirectUri = process.env.GOOGLE_REDIRECT_URI ||
+            `${new URL(request.url).origin}/api/auth/google/callback`;
 
-            let owner = await Owner.findOne({ email });
+      googleAuthUrl.searchParams.append('client_id', process.env.GOOGLE_CLIENT_ID);
+      googleAuthUrl.searchParams.append('redirect_uri', redirectUri);
+      googleAuthUrl.searchParams.append('response_type', 'code');
+      googleAuthUrl.searchParams.append('scope', 'email profile');
+      googleAuthUrl.searchParams.append('access_type', 'offline');
+      googleAuthUrl.searchParams.append('prompt', 'consent');
 
-            if (!owner) {
-                  owner = await Owner.create({
-                        shopName: `${name}'s Shop`,
-                        ownerName: name,
-                        email,
-                        passwordHash: crypto.randomBytes(32).toString('hex'),
-                        provider: 'google',
-                        googleId,
-                  });
-            }
-
-            if (!process.env.JWT_SECRET) {
-                  return NextResponse.json(
-                        { error: 'Server misconfiguration' },
-                        { status: 500 }
-                  );
-            }
-
-            const token = jwt.sign(
-                  { id: owner._id, email: owner.email },
-                  process.env.JWT_SECRET,
-                  { expiresIn: '7d' }
-            );
-
-            return NextResponse.json({ success: true, ownerId: owner._id, token });
-      } catch (err) {
-            console.error(err);
-            return NextResponse.json({ error: err.message }, { status: 500 });
-      }
+      return NextResponse.redirect(googleAuthUrl.toString());
 }
