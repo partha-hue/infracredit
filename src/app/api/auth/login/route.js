@@ -4,6 +4,9 @@ import jwt from 'jsonwebtoken';
 import Owner from '@/models/Owner';
 import connectDB from '@/lib/mongodb';
 
+// Add this line to prevent static generation
+export const dynamic = 'force-dynamic';
+
 export async function POST(req) {
       try {
             /* ----------------- SAFETY CHECKS ----------------- */
@@ -34,6 +37,14 @@ export async function POST(req) {
             if (!owner) {
                   return NextResponse.json(
                         { error: 'Invalid email or password' },
+                        { status: 401 }
+                  );
+            }
+
+            // Check if this is a Google OAuth account
+            if (owner.provider === 'google' && !owner.passwordHash) {
+                  return NextResponse.json(
+                        { error: 'Please sign in with Google' },
                         { status: 401 }
                   );
             }
