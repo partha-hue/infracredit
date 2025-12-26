@@ -1,9 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function GoogleSuccess() {
+// Mark as dynamic to prevent static generation
+export const dynamic = 'force-dynamic';
+
+function GoogleSuccessContent() {
       const router = useRouter();
       const searchParams = useSearchParams();
 
@@ -21,5 +24,17 @@ export default function GoogleSuccess() {
             <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
                   Finishing Google sign-in...
             </div>
+      );
+}
+
+export default function GoogleSuccess() {
+      return (
+            <Suspense fallback={
+                  <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+                        Loading...
+                  </div>
+            }>
+                  <GoogleSuccessContent />
+            </Suspense>
       );
 }
