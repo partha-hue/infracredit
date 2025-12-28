@@ -217,6 +217,10 @@ export default function OwnerDashboard() {
 
       const [toasts, setToasts] = useState([]);
 
+      // NEW: responsive behavior for WhatsApp-style flow
+      const [isMobileView, setIsMobileView] = useState(true);
+      const [showListOnMobile, setShowListOnMobile] = useState(true);
+
       const isDark = theme === 'dark';
 
       const notify = (title, type = 'info', message = '') => {
@@ -254,6 +258,25 @@ export default function OwnerDashboard() {
             // eslint-disable-next-line react-hooks/exhaustive-deps
       }, []);
 
+      // detect mobile vs desktop (WhatsApp: list-only on mobile, split view on desktop)
+      useEffect(() => {
+            const handleResize = () => {
+                  const mobile = window.innerWidth < 768; // Tailwind md breakpoint
+                  setIsMobileView(mobile);
+                  if (!mobile) {
+                        // always show both on desktop
+                        setShowListOnMobile(true);
+                  } else {
+                        // on mobile, default to list if nothing selected
+                        if (!selected) setShowListOnMobile(true);
+                  }
+            };
+
+            handleResize();
+            window.addEventListener('resize', handleResize);
+            return () => window.removeEventListener('resize', handleResize);
+      }, [selected]);
+
       const filteredCustomers = useMemo(() => {
             const term = search.trim().toLowerCase();
             return customers.filter((c) => {
@@ -290,6 +313,7 @@ export default function OwnerDashboard() {
                   setNewName('');
                   setNewPhone('');
                   notify('Customer added', 'success', created.name);
+                  if (isMobileView) setShowListOnMobile(false);
             } catch (err) {
                   notify('Failed to add customer', 'error', err.message || '');
             }
@@ -375,6 +399,7 @@ export default function OwnerDashboard() {
                   setSelected(null);
                   setSelectedTxnIds(new Set());
                   setChatMenuOpen(false);
+                  if (isMobileView) setShowListOnMobile(true);
             }
 
             if (lastDeleted?.timeoutId) {
@@ -587,421 +612,446 @@ export default function OwnerDashboard() {
             );
       }
 
+      // helper flags for layout
+      const showSidebar =
+            !isMobileView || (isMobileView && showListOnMobile);
+      const showChatPane =
+            !isMobileView || (isMobileView && !showListOnMobile);
+
       return (
             <div
                   className={`fixed inset-0 ${rootBg} ${textColor} flex flex-col md:flex-row`}
             >
                   <div className="flex flex-1 h-full w-full overflow-hidden">
-                        {/* LEFT: CUSTOMER LIST */}
-                        <aside
-                              className={`w-full md:w-80 ${sidebarBg} border-r ${sidebarBorder} flex flex-col h-full`}
-                        >
-                              {/* Top bar */}
-                              <div
-                                    className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b ${sidebarBorder}`}
+                        {/* LEFT: CUSTOMER LIST (WhatsApp chat list) */}
+                        {showSidebar && (
+                              <aside
+                                    className={`w-full md:w-80 ${sidebarBg} border-r ${sidebarBorder} flex flex-col h-full`}
                               >
-                                    <div>
-                                          <h1 className="text-lg font-semibold">InfraCredit</h1>
-                                          <p className="text-[10px] text-slate-400">Digital Khata</p>
-                                    </div>
-
-                                    <button
-                                          onClick={() => setTheme(isDark ? 'light' : 'dark')}
-                                          className="text-xl rounded-full px-2 py-1 hover:bg-slate-700/40 transition-colors select-none"
-                                          title="Toggle theme"
-                                    >
-                                          {isDark ? '🌙' : '☀️'}
-                                    </button>
-                              </div>
-
-                              {/* Search + filter */}
-                              <div className={`px-3 pt-3 ${sidebarBg} space-y-2`}>
+                                    {/* Top bar */}
                                     <div
-                                          className={`flex items-center ${chipBg} rounded-full px-3 py-1.5 gap-2`}
+                                          className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b ${sidebarBorder}`}
                                     >
-                                          <span className="text-slate-400 text-sm select-none">🔍</span>
-                                          <input
-                                                value={search}
-                                                onChange={(e) => setSearch(e.target.value)}
-                                                placeholder="Search name or number"
-                                                className="bg-transparent flex-1 text-xs focus:outline-none"
-                                          />
-                                    </div>
-                                    <div className="flex gap-1 text-[10px] overflow-x-auto no-scrollbar pb-1">
-                                          <button
-                                                onClick={() => setFilter('all')}
-                                                className={`px-3 py-1 rounded-full border ${filter === 'all'
-                                                            ? 'bg-emerald-500 text-black border-emerald-500'
-                                                            : `${chipBg} ${sidebarBorder} text-slate-300`
-                                                      }`}
-                                          >
-                                                All
-                                          </button>
-                                          <button
-                                                onClick={() => setFilter('due')}
-                                                className={`px-3 py-1 rounded-full border ${filter === 'due'
-                                                            ? 'bg-amber-500 text-black border-amber-500'
-                                                            : `${chipBg} ${sidebarBorder} text-slate-300`
-                                                      }`}
-                                          >
-                                                Credit Due
-                                          </button>
-                                          <button
-                                                onClick={() => setFilter('cleared')}
-                                                className={`px-3 py-1 rounded-full border ${filter === 'cleared'
-                                                            ? 'bg-sky-500 text-black border-sky-500'
-                                                            : `${chipBg} ${sidebarBorder} text-slate-300`
-                                                      }`}
-                                          >
-                                                Cleared
-                                          </button>
-                                    </div>
-                              </div>
+                                          <div>
+                                                <h1 className="text-lg font-semibold">InfraCredit</h1>
+                                                <p className="text-[10px] text-slate-400">Digital Khata</p>
+                                          </div>
 
-                              {/* New customer form */}
-                              <div
-                                    className={`px-3 pb-3 pt-2 ${sidebarBg} border-b ${sidebarBorder}`}
-                              >
-                                    <div className={`${headerBg} rounded-2xl p-3 space-y-2`}>
-                                          <input
-                                                placeholder="Customer Name"
-                                                className={`${inputBg} rounded-full px-3 py-2 w-full text-xs focus:outline-none`}
-                                                value={newName}
-                                                onChange={(e) => setNewName(e.target.value)}
-                                          />
-                                          <input
-                                                placeholder="Phone (10 digits)"
-                                                className={`${inputBg} rounded-full px-3 py-2 w-full text-xs focus:outline-none`}
-                                                value={newPhone}
-                                                onChange={(e) => {
-                                                      const digits = e.target.value.replace(/\D/g, '');
-                                                      if (digits.length <= 10) setNewPhone(digits);
-                                                }}
-                                          />
                                           <button
-                                                onClick={handleAddCustomer}
-                                                className="mt-1 w-full bg-emerald-500 hover:bg-emerald-600 rounded-full py-2 text-xs font-semibold text-black"
+                                                onClick={() => setTheme(isDark ? 'light' : 'dark')}
+                                                className="text-xl rounded-full px-2 py-1 hover:bg-slate-700/40 transition-colors select-none"
+                                                title="Toggle theme"
                                           >
-                                                + Add Customer
+                                                {isDark ? '🌙' : '☀️'}
                                           </button>
                                     </div>
-                              </div>
 
-                              {/* Undo bar */}
-                              {lastDeleted && (
-                                    <div className="px-3 py-2 bg-amber-900 text-amber-100 text-[11px] flex items-center justify-between">
-                                          <span>
-                                                Deleted {lastDeleted.customer.name}. Undo within 10 seconds.
-                                          </span>
-                                          <button
-                                                onClick={handleUndoDelete}
-                                                className="underline font-semibold"
-                                          >
-                                                Undo
-                                          </button>
-                                    </div>
-                              )}
-
-                              {/* Customer list */}
-                              <div className={`flex-1 overflow-y-auto ${sidebarBg}`}>
-                                    {filteredCustomers.map((c) => (
+                                    {/* Search + filter */}
+                                    <div className={`px-3 pt-3 ${sidebarBg} space-y-2`}>
                                           <div
-                                                key={c.phone}
-                                                className={`w-full px-3 py-3 flex items-center gap-3 border-b ${sidebarBorder} ${selected?.phone === c.phone && isDark ? 'bg-slate-900' : ''
-                                                      } ${selected?.phone === c.phone && !isDark ? 'bg-slate-100' : ''
-                                                      }`}
+                                                className={`flex items-center ${chipBg} rounded-full px-3 py-1.5 gap-2`}
                                           >
+                                                <span className="text-slate-400 text-sm select-none">🔍</span>
+                                                <input
+                                                      value={search}
+                                                      onChange={(e) => setSearch(e.target.value)}
+                                                      placeholder="Search name or number"
+                                                      className="bg-transparent flex-1 text-xs focus:outline-none"
+                                                />
+                                          </div>
+                                          <div className="flex gap-1 text-[10px] overflow-x-auto no-scrollbar pb-1">
                                                 <button
-                                                      onClick={() => {
-                                                            setSelected(c);
-                                                            clearTxnSelection();
-                                                      }}
-                                                      className="flex-1 flex items-center gap-3 text-left"
+                                                      onClick={() => setFilter('all')}
+                                                      className={`px-3 py-1 rounded-full border ${filter === 'all'
+                                                                  ? 'bg-emerald-500 text-black border-emerald-500'
+                                                                  : `${chipBg} ${sidebarBorder} text-slate-300`
+                                                            }`}
                                                 >
-                                                      <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white">
-                                                            {c.name?.[0]?.toUpperCase() || 'C'}
-                                                      </div>
-
-                                                      <div className="flex-1">
-                                                            <div className="flex justify-between items-center">
-                                                                  <p className="text-sm font-semibold">{c.name}</p>
-                                                                  <span className="text-[10px] text-slate-500">
-                                                                        {c.ledger && c.ledger.length
-                                                                              ? formatDateTime(
-                                                                                    c.ledger[c.ledger.length - 1].createdAt ||
-                                                                                    c.ledger[c.ledger.length - 1].date,
-                                                                              )
-                                                                              : ''}
-                                                                  </span>
-                                                            </div>
-                                                            <div className="flex justify-between items-center mt-1">
-                                                                  <p className="text-[11px] text-slate-400 truncate max-w-40">
-                                                                        {c.ledger && c.ledger.length
-                                                                              ? c.ledger[c.ledger.length - 1].note ||
-                                                                              `${c.ledger[c.ledger.length - 1].type.toUpperCase()} ₹${c.ledger[c.ledger.length - 1].amount
-                                                                              }`
-                                                                              : 'No transactions yet'}
-                                                                  </p>
-                                                                  <span
-                                                                        className={`ml-2 text-[11px] font-semibold ${(c.currentDue || 0) > 0
-                                                                                    ? 'text-amber-500'
-                                                                                    : 'text-emerald-500'
-                                                                              }`}
-                                                                  >
-                                                                        ₹{c.currentDue}
-                                                                  </span>
-                                                            </div>
-                                                      </div>
+                                                      All
                                                 </button>
-
                                                 <button
-                                                      onClick={() => handleDeleteCustomer(c)}
-                                                      className="text-[11px] text-red-400 hover:text-red-300 select-none"
-                                                      title="Delete customer"
+                                                      onClick={() => setFilter('due')}
+                                                      className={`px-3 py-1 rounded-full border ${filter === 'due'
+                                                                  ? 'bg-amber-500 text-black border-amber-500'
+                                                                  : `${chipBg} ${sidebarBorder} text-slate-300`
+                                                            }`}
                                                 >
-                                                      🗑
+                                                      Credit Due
+                                                </button>
+                                                <button
+                                                      onClick={() => setFilter('cleared')}
+                                                      className={`px-3 py-1 rounded-full border ${filter === 'cleared'
+                                                                  ? 'bg-sky-500 text-black border-sky-500'
+                                                                  : `${chipBg} ${sidebarBorder} text-slate-300`
+                                                            }`}
+                                                >
+                                                      Cleared
                                                 </button>
                                           </div>
-                                    ))}
-                                    {filteredCustomers.length === 0 && (
-                                          <div className="text-center text-xs text-slate-500 mt-8 px-4">
-                                                No customers match this search/filter.
+                                    </div>
+
+                                    {/* New customer form */}
+                                    <div
+                                          className={`px-3 pb-3 pt-2 ${sidebarBg} border-b ${sidebarBorder}`}
+                                    >
+                                          <div className={`${headerBg} rounded-2xl p-3 space-y-2`}>
+                                                <input
+                                                      placeholder="Customer Name"
+                                                      className={`${inputBg} rounded-full px-3 py-2 w-full text-xs focus:outline-none`}
+                                                      value={newName}
+                                                      onChange={(e) => setNewName(e.target.value)}
+                                                />
+                                                <input
+                                                      placeholder="Phone (10 digits)"
+                                                      className={`${inputBg} rounded-full px-3 py-2 w-full text-xs focus:outline-none`}
+                                                      value={newPhone}
+                                                      onChange={(e) => {
+                                                            const digits = e.target.value.replace(/\D/g, '');
+                                                            if (digits.length <= 10) setNewPhone(digits);
+                                                      }}
+                                                />
+                                                <button
+                                                      onClick={handleAddCustomer}
+                                                      className="mt-1 w-full bg-emerald-500 hover:bg-emerald-600 rounded-full py-2 text-xs font-semibold text-black"
+                                                >
+                                                      + Add Customer
+                                                </button>
+                                          </div>
+                                    </div>
+
+                                    {/* Undo bar */}
+                                    {lastDeleted && (
+                                          <div className="px-3 py-2 bg-amber-900 text-amber-100 text-[11px] flex items-center justify-between">
+                                                <span>
+                                                      Deleted {lastDeleted.customer.name}. Undo within 10 seconds.
+                                                </span>
+                                                <button
+                                                      onClick={handleUndoDelete}
+                                                      className="underline font-semibold"
+                                                >
+                                                      Undo
+                                                </button>
                                           </div>
                                     )}
-                              </div>
-                        </aside>
 
-                        {/* RIGHT: CHAT WINDOW */}
-                        <main className={`flex-1 h-full flex flex-col ${chatBg}`}>
-                              {!selected ? (
-                                    <div className="flex-1 flex items-center justify-center text-slate-500 text-sm px-4 text-center">
-                                          Select a customer to view Borrow &amp; Payment history.
+                                    {/* Customer list */}
+                                    <div className={`flex-1 overflow-y-auto ${sidebarBg}`}>
+                                          {filteredCustomers.map((c) => (
+                                                <div
+                                                      key={c.phone}
+                                                      className={`w-full px-3 py-3 flex items-center gap-3 border-b ${sidebarBorder} ${selected?.phone === c.phone && isDark ? 'bg-slate-900' : ''
+                                                            } ${selected?.phone === c.phone && !isDark
+                                                                  ? 'bg-slate-100'
+                                                                  : ''
+                                                            }`}
+                                                >
+                                                      <button
+                                                            onClick={() => {
+                                                                  setSelected(c);
+                                                                  clearTxnSelection();
+                                                                  if (isMobileView) setShowListOnMobile(false);
+                                                            }}
+                                                            className="flex-1 flex items-center gap-3 text-left"
+                                                      >
+                                                            <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white">
+                                                                  {c.name?.[0]?.toUpperCase() || 'C'}
+                                                            </div>
+
+                                                            <div className="flex-1">
+                                                                  <div className="flex justify-between items-center">
+                                                                        <p className="text-sm font-semibold">{c.name}</p>
+                                                                        <span className="text-[10px] text-slate-500">
+                                                                              {c.ledger && c.ledger.length
+                                                                                    ? formatDateTime(
+                                                                                          c.ledger[c.ledger.length - 1].createdAt ||
+                                                                                          c.ledger[c.ledger.length - 1].date,
+                                                                                    )
+                                                                                    : ''}
+                                                                        </span>
+                                                                  </div>
+                                                                  <div className="flex justify-between items-center mt-1">
+                                                                        <p className="text-[11px] text-slate-400 truncate max-w-40">
+                                                                              {c.ledger && c.ledger.length
+                                                                                    ? c.ledger[c.ledger.length - 1].note ||
+                                                                                    `${c.ledger[c.ledger.length - 1].type.toUpperCase()} ₹${c.ledger[c.ledger.length - 1].amount
+                                                                                    }`
+                                                                                    : 'No transactions yet'}
+                                                                        </p>
+                                                                        <span
+                                                                              className={`ml-2 text-[11px] font-semibold ${(c.currentDue || 0) > 0
+                                                                                          ? 'text-amber-500'
+                                                                                          : 'text-emerald-500'
+                                                                                    }`}
+                                                                        >
+                                                                              ₹{c.currentDue}
+                                                                        </span>
+                                                                  </div>
+                                                            </div>
+                                                      </button>
+
+                                                      <button
+                                                            onClick={() => handleDeleteCustomer(c)}
+                                                            className="text-[11px] text-red-400 hover:text-red-300 select-none"
+                                                            title="Delete customer"
+                                                      >
+                                                            🗑
+                                                      </button>
+                                                </div>
+                                          ))}
+                                          {filteredCustomers.length === 0 && (
+                                                <div className="text-center text-xs text-slate-500 mt-8 px-4">
+                                                      No customers match this search/filter.
+                                                </div>
+                                          )}
                                     </div>
-                              ) : (
-                                    <>
-                                          {/* Top bar */}
-                                          <div
-                                                className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b ${sidebarBorder}`}
-                                          >
-                                                <div className="flex items-center gap-3">
-                                                      <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white">
-                                                            {selected.name?.[0]?.toUpperCase() || 'C'}
+                              </aside>
+                        )}
+
+                        {/* RIGHT: CHAT WINDOW (WhatsApp conversation screen) */}
+                        {showChatPane && (
+                              <main className={`flex-1 h-full flex flex-col ${chatBg}`}>
+                                    {!selected ? (
+                                          <div className="flex-1 flex items-center justify-center text-slate-500 text-sm px-4 text-center">
+                                                Select a customer to view Borrow &amp; Payment history.
+                                          </div>
+                                    ) : (
+                                          <>
+                                                {/* Top bar */}
+                                                <div
+                                                      className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b ${sidebarBorder}`}
+                                                >
+                                                      <div className="flex items-center gap-3">
+                                                            {/* Mobile back button like WhatsApp */}
+                                                            {isMobileView && (
+                                                                  <button
+                                                                        onClick={() => {
+                                                                              setShowListOnMobile(true);
+                                                                              clearTxnSelection();
+                                                                        }}
+                                                                        className="mr-1 text-xl text-slate-200"
+                                                                  >
+                                                                        ←
+                                                                  </button>
+                                                            )}
+                                                            <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white">
+                                                                  {selected.name?.[0]?.toUpperCase() || 'C'}
+                                                            </div>
+                                                            <div>
+                                                                  <p className="text-sm font-semibold">{selected.name}</p>
+                                                                  <p className="text-[10px] text-slate-400">
+                                                                        {selected.phone}
+                                                                  </p>
+                                                            </div>
                                                       </div>
-                                                      <div>
-                                                            <p className="text-sm font-semibold">{selected.name}</p>
-                                                            <p className="text-[10px] text-slate-400">
-                                                                  {selected.phone}
-                                                            </p>
+                                                      <div className="flex items-center gap-3 text-slate-300">
+                                                            {selectedTxnIds.size > 0 && (
+                                                                  <span className="text-[11px]">
+                                                                        {selectedTxnIds.size} selected
+                                                                  </span>
+                                                            )}
+                                                            <button
+                                                                  onClick={sendDueReminder}
+                                                                  className="hidden sm:inline-flex text-[11px] bg-emerald-600 hover:bg-emerald-500 text-black rounded-full px-3 py-1"
+                                                            >
+                                                                  WhatsApp Reminder
+                                                            </button>
+                                                            <button
+                                                                  onClick={handleChatMenuClick}
+                                                                  disabled={selectedTxnIds.size === 0}
+                                                                  className={`text-xl relative select-none ${selectedTxnIds.size === 0
+                                                                              ? 'text-slate-500 cursor-default'
+                                                                              : 'cursor-pointer'
+                                                                        }`}
+                                                            >
+                                                                  ⋮
+                                                                  {chatMenuOpen && selectedTxnIds.size > 0 && (
+                                                                        <div className="absolute right-0 mt-2 w-32 bg-slate-800 text-[11px] rounded-md shadow-lg z-20">
+                                                                              <button
+                                                                                    className="w-full text-left px-3 py-2 hover:bg-slate-700"
+                                                                                    onClick={() => handleTxnAction('edit')}
+                                                                              >
+                                                                                    Edit
+                                                                              </button>
+                                                                              <button
+                                                                                    className="w-full text-left px-3 py-2 hover:bg-slate-700"
+                                                                                    onClick={() => handleTxnAction('delete')}
+                                                                              >
+                                                                                    Delete
+                                                                              </button>
+                                                                              <button
+                                                                                    className="w-full text-left px-3 py-2 hover:bg-slate-700"
+                                                                                    onClick={() => handleTxnAction('details')}
+                                                                              >
+                                                                                    Details
+                                                                              </button>
+                                                                              <button
+                                                                                    className="w-full text-left px-3 py-2 hover:bg-slate-700"
+                                                                                    onClick={clearTxnSelection}
+                                                                              >
+                                                                                    Clear selection
+                                                                              </button>
+                                                                        </div>
+                                                                  )}
+                                                            </button>
                                                       </div>
                                                 </div>
-                                                <div className="flex items-center gap-3 text-slate-300">
-                                                      {selectedTxnIds.size > 0 && (
-                                                            <span className="text-[11px]">
-                                                                  {selectedTxnIds.size} selected
-                                                            </span>
-                                                      )}
+
+                                                {/* Current due banner */}
+                                                <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-300 flex items-center justify-between">
+                                                      <span>Current Due: ₹{selected.currentDue}</span>
                                                       <button
                                                             onClick={sendDueReminder}
-                                                            className="hidden sm:inline-flex text-[11px] bg-emerald-600 hover:bg-emerald-500 text-black rounded-full px-3 py-1"
+                                                            className="sm:hidden text-[11px] underline"
                                                       >
                                                             WhatsApp Reminder
                                                       </button>
+                                                </div>
+
+                                                {/* Chat search bar */}
+                                                <div className="px-4 py-2 border-b border-slate-700 text-[11px] flex items-center gap-2">
+                                                      <span className="text-slate-400 select-none">🔍</span>
+                                                      <input
+                                                            value={chatSearch}
+                                                            onChange={(e) => setChatSearch(e.target.value)}
+                                                            placeholder="Search in this khata by note, amount or date"
+                                                            className="flex-1 bg-transparent focus:outline-none text-xs"
+                                                      />
+                                                      {chatSearch && (
+                                                            <button
+                                                                  onClick={() => setChatSearch('')}
+                                                                  className="text-slate-400 select-none"
+                                                            >
+                                                                  ✕
+                                                            </button>
+                                                      )}
+                                                </div>
+
+                                                {/* Messages area */}
+                                                <div className="flex-1 overflow-y-auto px-2 sm:px-4 py-3 space-y-2">
+                                                      {filteredLedger.length > 0 && (
+                                                            <div className="flex justify-center mb-2">
+                                                                  <span className="text-[10px] bg-slate-800 text-slate-300 rounded-full px-3 py-1">
+                                                                        Borrow history
+                                                                  </span>
+                                                            </div>
+                                                      )}
+
+                                                      {filteredLedger
+                                                            .slice()
+                                                            .sort(
+                                                                  (a, b) =>
+                                                                        new Date(a.createdAt || a.date).getTime() -
+                                                                        new Date(b.createdAt || b.date).getTime(),
+                                                            )
+                                                            .map((t, idx) => {
+                                                                  const isCredit = t.type === 'credit';
+                                                                  const bubbleClass = isCredit
+                                                                        ? bubbleCredit
+                                                                        : bubblePayment;
+                                                                  const justify = isCredit ? 'flex-end' : 'flex-start';
+
+                                                                  const when = formatDateTime(t.createdAt || t.date);
+                                                                  const title =
+                                                                        t.type === 'credit'
+                                                                              ? 'Due'
+                                                                              : t.type === 'payment'
+                                                                                    ? 'Payment'
+                                                                                    : 'Entry';
+
+                                                                  const isSelected = selectedTxnIds.has(idx);
+
+                                                                  return (
+                                                                        <div
+                                                                              key={idx}
+                                                                              className="w-full flex"
+                                                                              style={{ justifyContent: justify }}
+                                                                        >
+                                                                              <button
+                                                                                    type="button"
+                                                                                    onClick={() => toggleTxnSelect(idx)}
+                                                                                    className={`max-w-[80%] rounded-2xl px-3 py-2 text-xs shadow-sm text-left ${bubbleClass} border ${isSelected
+                                                                                                ? 'border-amber-400'
+                                                                                                : 'border-transparent'
+                                                                                          }`}
+                                                                              >
+                                                                                    <div className="flex justify-between items-center gap-2">
+                                                                                          <span className="font-semibold">
+                                                                                                {title} · ₹{t.amount}
+                                                                                          </span>
+                                                                                          <span className="text-[10px] opacity-80">
+                                                                                                {when}
+                                                                                          </span>
+                                                                                    </div>
+
+                                                                                    {t.note && (
+                                                                                          <div className="mt-1 text-[11px] whitespace-pre-line">
+                                                                                                {t.note}
+                                                                                          </div>
+                                                                                    )}
+
+                                                                                    {typeof t.balanceAfter === 'number' && (
+                                                                                          <div className="mt-1 text-[10px] opacity-80 text-right">
+                                                                                                Due after entry: ₹{t.balanceAfter}
+                                                                                          </div>
+                                                                                    )}
+                                                                              </button>
+                                                                        </div>
+                                                                  );
+                                                            })}
+
+                                                      {filteredLedger.length === 0 && (
+                                                            <div className="flex flex-col items-center justify-center h-full text-xs text-slate-500">
+                                                                  <p>No transactions match this search.</p>
+                                                                  <p>Clear search or add a new Udhaar/Payment below.</p>
+                                                            </div>
+                                                      )}
+
+                                                      <div ref={messagesEndRef} />
+                                                </div>
+
+                                                {/* Bottom input bar */}
+                                                <div
+                                                      className={`px-2 sm:px-4 py-2 ${headerBg} border-t ${sidebarBorder} flex items-center gap-2`}
+                                                >
+                                                      <select
+                                                            className={`${inputBg} text-[11px] rounded-full px-2 py-2 text-slate-100 focus:outline-none`}
+                                                            value={txnType}
+                                                            onChange={(e) => setTxnType(e.target.value)}
+                                                      >
+                                                            <option value="credit">Credit Due</option>
+                                                            <option value="payment">Payment</option>
+                                                      </select>
+
+                                                      <input
+                                                            type="number"
+                                                            placeholder="₹ Amount"
+                                                            className={`${inputBg} rounded-full px-3 py-2 w-24 text-xs focus:outline-none`}
+                                                            value={txnAmount}
+                                                            onChange={(e) => setTxnAmount(e.target.value)}
+                                                      />
+
+                                                      <input
+                                                            placeholder="Note"
+                                                            className={`${inputBg} rounded-full px-3 py-2 flex-1 text-xs focus:outline-none`}
+                                                            value={txnNote}
+                                                            onChange={(e) => setTxnNote(e.target.value)}
+                                                      />
+
                                                       <button
-                                                            onClick={handleChatMenuClick}
-                                                            disabled={selectedTxnIds.size === 0}
-                                                            className={`text-xl relative select-none ${selectedTxnIds.size === 0
-                                                                        ? 'text-slate-500 cursor-default'
-                                                                        : 'cursor-pointer'
+                                                            onClick={handleSaveTxn}
+                                                            disabled={!selected || !txnAmount}
+                                                            className={`rounded-full px-4 py-2 text-xs font-semibold ${!selected || !txnAmount
+                                                                        ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                                                                        : 'bg-emerald-500 hover:bg-emerald-600 text-black'
                                                                   }`}
                                                       >
-                                                            ⋮
-                                                            {chatMenuOpen && selectedTxnIds.size > 0 && (
-                                                                  <div className="absolute right-0 mt-2 w-32 bg-slate-800 text-[11px] rounded-md shadow-lg z-20">
-                                                                        <button
-                                                                              className="w-full text-left px-3 py-2 hover:bg-slate-700"
-                                                                              onClick={() => handleTxnAction('edit')}
-                                                                        >
-                                                                              Edit
-                                                                        </button>
-                                                                        <button
-                                                                              className="w-full text-left px-3 py-2 hover:bg-slate-700"
-                                                                              onClick={() => handleTxnAction('delete')}
-                                                                        >
-                                                                              Delete
-                                                                        </button>
-                                                                        <button
-                                                                              className="w-full text-left px-3 py-2 hover:bg-slate-700"
-                                                                              onClick={() => handleTxnAction('details')}
-                                                                        >
-                                                                              Details
-                                                                        </button>
-                                                                        <button
-                                                                              className="w-full text-left px-3 py-2 hover:bg-slate-700"
-                                                                              onClick={clearTxnSelection}
-                                                                        >
-                                                                              Clear selection
-                                                                        </button>
-                                                                  </div>
-                                                            )}
+                                                            {editingIndex !== null ? 'Update' : 'Save'}
                                                       </button>
                                                 </div>
-                                          </div>
-
-                                          {/* Current due banner */}
-                                          <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-300 flex items-center justify-between">
-                                                <span>Current Due: ₹{selected.currentDue}</span>
-                                                <button
-                                                      onClick={sendDueReminder}
-                                                      className="sm:hidden text-[11px] underline"
-                                                >
-                                                      WhatsApp Reminder
-                                                </button>
-                                          </div>
-
-                                          {/* Chat search bar */}
-                                          <div className="px-4 py-2 border-b border-slate-700 text-[11px] flex items-center gap-2">
-                                                <span className="text-slate-400 select-none">🔍</span>
-                                                <input
-                                                      value={chatSearch}
-                                                      onChange={(e) => setChatSearch(e.target.value)}
-                                                      placeholder="Search in this khata by note, amount or date"
-                                                      className="flex-1 bg-transparent focus:outline-none text-xs"
-                                                />
-                                                {chatSearch && (
-                                                      <button
-                                                            onClick={() => setChatSearch('')}
-                                                            className="text-slate-400 select-none"
-                                                      >
-                                                            ✕
-                                                      </button>
-                                                )}
-                                          </div>
-
-                                          {/* Messages area */}
-                                          <div className="flex-1 overflow-y-auto px-2 sm:px-4 py-3 space-y-2">
-                                                {filteredLedger.length > 0 && (
-                                                      <div className="flex justify-center mb-2">
-                                                            <span className="text-[10px] bg-slate-800 text-slate-300 rounded-full px-3 py-1">
-                                                                  Borrow history
-                                                            </span>
-                                                      </div>
-                                                )}
-
-                                                {filteredLedger
-                                                      .slice()
-                                                      .sort(
-                                                            (a, b) =>
-                                                                  new Date(a.createdAt || a.date).getTime() -
-                                                                  new Date(b.createdAt || b.date).getTime(),
-                                                      )
-                                                      .map((t, idx) => {
-                                                            const isCredit = t.type === 'credit';
-                                                            const bubbleClass = isCredit
-                                                                  ? bubbleCredit
-                                                                  : bubblePayment;
-                                                            const justify = isCredit ? 'flex-end' : 'flex-start';
-
-                                                            const when = formatDateTime(t.createdAt || t.date);
-                                                            const title =
-                                                                  t.type === 'credit'
-                                                                        ? 'Due'
-                                                                        : t.type === 'payment'
-                                                                              ? 'Payment'
-                                                                              : 'Entry';
-
-                                                            const isSelected = selectedTxnIds.has(idx);
-
-                                                            return (
-                                                                  <div
-                                                                        key={idx}
-                                                                        className="w-full flex"
-                                                                        style={{ justifyContent: justify }}
-                                                                  >
-                                                                        <button
-                                                                              type="button"
-                                                                              onClick={() => toggleTxnSelect(idx)}
-                                                                              className={`max-w-[80%] rounded-2xl px-3 py-2 text-xs shadow-sm text-left ${bubbleClass} border ${isSelected
-                                                                                          ? 'border-amber-400'
-                                                                                          : 'border-transparent'
-                                                                                    }`}
-                                                                        >
-                                                                              <div className="flex justify-between items-center gap-2">
-                                                                                    <span className="font-semibold">
-                                                                                          {title} · ₹{t.amount}
-                                                                                    </span>
-                                                                                    <span className="text-[10px] opacity-80">
-                                                                                          {when}
-                                                                                    </span>
-                                                                              </div>
-
-                                                                              {t.note && (
-                                                                                    <div className="mt-1 text-[11px] whitespace-pre-line">
-                                                                                          {t.note}
-                                                                                    </div>
-                                                                              )}
-
-                                                                              {typeof t.balanceAfter === 'number' && (
-                                                                                    <div className="mt-1 text-[10px] opacity-80 text-right">
-                                                                                          Due after entry: ₹{t.balanceAfter}
-                                                                                    </div>
-                                                                              )}
-                                                                        </button>
-                                                                  </div>
-                                                            );
-                                                      })}
-
-                                                {filteredLedger.length === 0 && (
-                                                      <div className="flex flex-col items-center justify-center h-full text-xs text-slate-500">
-                                                            <p>No transactions match this search.</p>
-                                                            <p>Clear search or add a new Udhaar/Payment below.</p>
-                                                      </div>
-                                                )}
-
-                                                <div ref={messagesEndRef} />
-                                          </div>
-
-                                          {/* Bottom input bar */}
-                                          <div
-                                                className={`px-2 sm:px-4 py-2 ${headerBg} border-t ${sidebarBorder} flex items-center gap-2`}
-                                          >
-                                                <select
-                                                      className={`${inputBg} text-[11px] rounded-full px-2 py-2 text-slate-100 focus:outline-none`}
-                                                      value={txnType}
-                                                      onChange={(e) => setTxnType(e.target.value)}
-                                                >
-                                                      <option value="credit">Credit Due</option>
-                                                      <option value="payment">Payment</option>
-                                                </select>
-
-                                                <input
-                                                      type="number"
-                                                      placeholder="₹ Amount"
-                                                      className={`${inputBg} rounded-full px-3 py-2 w-24 text-xs focus:outline-none`}
-                                                      value={txnAmount}
-                                                      onChange={(e) => setTxnAmount(e.target.value)}
-                                                />
-
-                                                <input
-                                                      placeholder="Note"
-                                                      className={`${inputBg} rounded-full px-3 py-2 flex-1 text-xs focus:outline-none`}
-                                                      value={txnNote}
-                                                      onChange={(e) => setTxnNote(e.target.value)}
-                                                />
-
-                                                <button
-                                                      onClick={handleSaveTxn}
-                                                      disabled={!selected || !txnAmount}
-                                                      className={`rounded-full px-4 py-2 text-xs font-semibold ${!selected || !txnAmount
-                                                                  ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                                                                  : 'bg-emerald-500 hover:bg-emerald-600 text-black'
-                                                            }`}
-                                                >
-                                                      {editingIndex !== null ? 'Update' : 'Save'}
-                                                </button>
-                                          </div>
-                                    </>
-                              )}
-                        </main>
+                                          </>
+                                    )}
+                              </main>
+                        )}
                   </div>
 
                   <ToastContainer
