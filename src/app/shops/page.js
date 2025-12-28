@@ -160,7 +160,7 @@ const ToastContainer = ({ toasts, removeToast, isDark }) => {
                               </div>
                               <button
                                     onClick={() => removeToast(t.id)}
-                                    className="ml-1 text-[11px] text-slate-400 hover:text-slate-200 transition-colors"
+                                    className="ml-1 text-[11px] text-slate-400 hover:text-slate-200 transition-colors select-none"
                               >
                                     ✕
                               </button>
@@ -202,7 +202,7 @@ export default function OwnerDashboard() {
       const [txnNote, setTxnNote] = useState('');
 
       const [search, setSearch] = useState('');
-      const [filter, setFilter] = useState('all'); // all | due | cleared
+      const [filter, setFilter] = useState('all'); // 'all' | 'due' | 'cleared'
 
       const [theme, setTheme] = useState('dark');
 
@@ -316,7 +316,7 @@ export default function OwnerDashboard() {
                   };
 
                   const newLedger = selected.ledger.map((t, i) =>
-                        i === editingIndex ? updatedEntry : t
+                        i === editingIndex ? updatedEntry : t,
                   );
 
                   const updatedCustomer = {
@@ -326,7 +326,7 @@ export default function OwnerDashboard() {
 
                   setSelected(updatedCustomer);
                   setCustomers((prev) =>
-                        prev.map((c) => (c.phone === selected.phone ? updatedCustomer : c))
+                        prev.map((c) => (c.phone === selected.phone ? updatedCustomer : c)),
                   );
 
                   setEditingIndex(null);
@@ -344,7 +344,7 @@ export default function OwnerDashboard() {
                         selected.phone,
                         txnType,
                         Number(txnAmount),
-                        txnNote
+                        txnNote,
                   );
 
                   setSelectedTxnIds(new Set());
@@ -352,7 +352,7 @@ export default function OwnerDashboard() {
 
                   setSelected(updated);
                   setCustomers((prev) =>
-                        prev.map((c) => (c.phone === updated.phone ? updated : c))
+                        prev.map((c) => (c.phone === updated.phone ? updated : c)),
                   );
 
                   setTxnAmount('');
@@ -366,7 +366,7 @@ export default function OwnerDashboard() {
 
       const handleDeleteCustomer = async (customer) => {
             const ok = window.confirm(
-                  `Delete customer "${customer.name}" and all its ledger entries?`
+                  `Delete customer "${customer.name}" and all its ledger entries?`,
             );
             if (!ok) return;
 
@@ -444,7 +444,7 @@ export default function OwnerDashboard() {
                         khataUrl,
                         '',
                         '— InfraCredit Khata',
-                  ].join('\n')
+                  ].join('\n'),
             );
 
             const phoneDigits = selected.phone.replace(/[^0-9]/g, '');
@@ -514,8 +514,8 @@ export default function OwnerDashboard() {
                         .map(
                               (t) =>
                                     `${t.type.toUpperCase()} ₹${t.amount} on ${formatDateTime(
-                                          t.createdAt || t.date
-                                    )}\nNote: ${t.note || '-'}`
+                                          t.createdAt || t.date,
+                                    )}\nNote: ${t.note || '-'}`,
                         )
                         .join('\n\n');
                   notify('Transaction details', 'info', msg);
@@ -525,12 +525,12 @@ export default function OwnerDashboard() {
 
             if (action === 'delete') {
                   const remaining = selected.ledger.filter(
-                        (_, idx) => !idsArray.includes(idx)
+                        (_, idx) => !idsArray.includes(idx),
                   );
                   const updated = { ...selected, ledger: remaining };
                   setSelected(updated);
                   setCustomers((prev) =>
-                        prev.map((c) => (c.phone === selected.phone ? updated : c))
+                        prev.map((c) => (c.phone === selected.phone ? updated : c)),
                   );
                   clearTxnSelection();
                   notify('Transactions deleted', 'success');
@@ -551,7 +551,7 @@ export default function OwnerDashboard() {
                         notify(
                               'Select only one entry',
                               'error',
-                              'Edit is allowed for one entry at a time.'
+                              'Edit is allowed for one entry at a time.',
                         );
                         clearTxnSelection();
                   }
@@ -568,11 +568,7 @@ export default function OwnerDashboard() {
                   const note = t.note?.toLowerCase() || '';
                   const amount = String(t.amount || '').toLowerCase();
                   const when = formatDateTime(t.createdAt || t.date).toLowerCase();
-                  return (
-                        note.includes(term) ||
-                        amount.includes(term) ||
-                        when.includes(term)
-                  );
+                  return note.includes(term) || amount.includes(term) || when.includes(term);
             });
       }, [selected, chatSearch]);
 
@@ -611,7 +607,7 @@ export default function OwnerDashboard() {
 
                                     <button
                                           onClick={() => setTheme(isDark ? 'light' : 'dark')}
-                                          className="text-xl rounded-full px-2 py-1 hover:bg-slate-700/40 transition-colors"
+                                          className="text-xl rounded-full px-2 py-1 hover:bg-slate-700/40 transition-colors select-none"
                                           title="Toggle theme"
                                     >
                                           {isDark ? '🌙' : '☀️'}
@@ -623,7 +619,7 @@ export default function OwnerDashboard() {
                                     <div
                                           className={`flex items-center ${chipBg} rounded-full px-3 py-1.5 gap-2`}
                                     >
-                                          <span className="text-slate-400 text-sm">🔍</span>
+                                          <span className="text-slate-400 text-sm select-none">🔍</span>
                                           <input
                                                 value={search}
                                                 onChange={(e) => setSearch(e.target.value)}
@@ -733,16 +729,17 @@ export default function OwnerDashboard() {
                                                                         {c.ledger && c.ledger.length
                                                                               ? formatDateTime(
                                                                                     c.ledger[c.ledger.length - 1].createdAt ||
-                                                                                    c.ledger[c.ledger.length - 1].date
+                                                                                    c.ledger[c.ledger.length - 1].date,
                                                                               )
                                                                               : ''}
                                                                   </span>
                                                             </div>
-                                                            <div className="flex justify_between items-center mt-1">
+                                                            <div className="flex justify-between items-center mt-1">
                                                                   <p className="text-[11px] text-slate-400 truncate max-w-40">
                                                                         {c.ledger && c.ledger.length
                                                                               ? c.ledger[c.ledger.length - 1].note ||
-                                                                              `${c.ledger[c.ledger.length - 1].type.toUpperCase()} ₹${c.ledger[c.ledger.length - 1].amount}`
+                                                                              `${c.ledger[c.ledger.length - 1].type.toUpperCase()} ₹${c.ledger[c.ledger.length - 1].amount
+                                                                              }`
                                                                               : 'No transactions yet'}
                                                                   </p>
                                                                   <span
@@ -759,7 +756,7 @@ export default function OwnerDashboard() {
 
                                                 <button
                                                       onClick={() => handleDeleteCustomer(c)}
-                                                      className="text-[11px] text-red-400 hover:text-red-300"
+                                                      className="text-[11px] text-red-400 hover:text-red-300 select-none"
                                                       title="Delete customer"
                                                 >
                                                       🗑
@@ -778,7 +775,7 @@ export default function OwnerDashboard() {
                         <main className={`flex-1 flex flex-col ${chatBg}`}>
                               {!selected ? (
                                     <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
-                                          Select a customer to view Borrow & Payment history.
+                                          Select a customer to view Borrow &amp; Payment history.
                                     </div>
                               ) : (
                                     <>
@@ -812,10 +809,10 @@ export default function OwnerDashboard() {
                                                       <button
                                                             onClick={handleChatMenuClick}
                                                             disabled={selectedTxnIds.size === 0}
-                                                            className={`text-xl ${selectedTxnIds.size === 0
+                                                            className={`text-xl relative select-none ${selectedTxnIds.size === 0
                                                                         ? 'text-slate-500 cursor-default'
                                                                         : 'cursor-pointer'
-                                                                  } relative`}
+                                                                  }`}
                                                       >
                                                             ⋮
                                                             {chatMenuOpen && selectedTxnIds.size > 0 && (
@@ -863,7 +860,7 @@ export default function OwnerDashboard() {
 
                                           {/* Chat search bar */}
                                           <div className="px-4 py-2 border-b border-slate-700 text-[11px] flex items-center gap-2">
-                                                <span className="text-slate-400">🔍</span>
+                                                <span className="text-slate-400 select-none">🔍</span>
                                                 <input
                                                       value={chatSearch}
                                                       onChange={(e) => setChatSearch(e.target.value)}
@@ -873,7 +870,7 @@ export default function OwnerDashboard() {
                                                 {chatSearch && (
                                                       <button
                                                             onClick={() => setChatSearch('')}
-                                                            className="text-slate-400"
+                                                            className="text-slate-400 select-none"
                                                       >
                                                             ✕
                                                       </button>
@@ -894,8 +891,8 @@ export default function OwnerDashboard() {
                                                       .slice()
                                                       .sort(
                                                             (a, b) =>
-                                                                  new Date(a.createdAt || a.date) -
-                                                                  new Date(b.createdAt || b.date)
+                                                                  new Date(a.createdAt || a.date).getTime() -
+                                                                  new Date(b.createdAt || b.date).getTime(),
                                                       )
                                                       .map((t, idx) => {
                                                             const isCredit = t.type === 'credit';
