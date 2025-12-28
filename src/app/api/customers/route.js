@@ -4,7 +4,7 @@ import Customer from '@/models/Customer';
 import jwt from 'jsonwebtoken';
 import { NextResponse } from 'next/server';
 
-/* -------------------- helpers -------------------- */
+/* -------- helpers -------- */
 
 function getToken(req) {
       const auth = req.headers.get('authorization');
@@ -22,12 +22,13 @@ function toObjectId(id) {
 
 // Accept only 10-digit Indian mobile numbers (no +91)
 function normalizeIndianMobile(phone) {
-      const digits = phone.replace(/\D/g, '');
+      const digits = String(phone || '').replace(/\D/g, '');
       if (!/^[6-9]\d{9}$/.test(digits)) return null;
       return digits;
 }
 
-/* -------------------- GET customers -------------------- */
+/* -------- GET /api/customers -------- */
+
 export async function GET(req) {
       try {
             await connectDB();
@@ -35,7 +36,7 @@ export async function GET(req) {
             if (!process.env.JWT_SECRET) {
                   return NextResponse.json(
                         { error: 'Server misconfiguration' },
-                        { status: 500 }
+                        { status: 500 },
                   );
             }
 
@@ -43,7 +44,7 @@ export async function GET(req) {
             if (!token) {
                   return NextResponse.json(
                         { error: 'Unauthorized: token missing' },
-                        { status: 401 }
+                        { status: 401 },
                   );
             }
 
@@ -53,7 +54,7 @@ export async function GET(req) {
             } catch {
                   return NextResponse.json(
                         { error: 'Invalid or expired token' },
-                        { status: 401 }
+                        { status: 401 },
                   );
             }
 
@@ -61,7 +62,7 @@ export async function GET(req) {
             if (!ownerId) {
                   return NextResponse.json(
                         { error: 'Invalid owner id in token' },
-                        { status: 400 }
+                        { status: 400 },
                   );
             }
 
@@ -74,12 +75,13 @@ export async function GET(req) {
             console.error('GET /api/customers error:', err);
             return NextResponse.json(
                   { error: 'Internal server error' },
-                  { status: 500 }
+                  { status: 500 },
             );
       }
 }
 
-/* -------------------- POST add customer -------------------- */
+/* -------- POST /api/customers -------- */
+
 export async function POST(req) {
       try {
             await connectDB();
@@ -87,7 +89,7 @@ export async function POST(req) {
             if (!process.env.JWT_SECRET) {
                   return NextResponse.json(
                         { error: 'Server misconfiguration' },
-                        { status: 500 }
+                        { status: 500 },
                   );
             }
 
@@ -95,7 +97,7 @@ export async function POST(req) {
             if (!token) {
                   return NextResponse.json(
                         { error: 'Unauthorized: token missing' },
-                        { status: 401 }
+                        { status: 401 },
                   );
             }
 
@@ -105,7 +107,7 @@ export async function POST(req) {
             } catch {
                   return NextResponse.json(
                         { error: 'Invalid or expired token' },
-                        { status: 401 }
+                        { status: 401 },
                   );
             }
 
@@ -113,7 +115,7 @@ export async function POST(req) {
             if (!ownerId) {
                   return NextResponse.json(
                         { error: 'Invalid owner id in token' },
-                        { status: 400 }
+                        { status: 400 },
                   );
             }
 
@@ -124,7 +126,7 @@ export async function POST(req) {
             if (!name || !phone) {
                   return NextResponse.json(
                         { error: 'Name and phone are required' },
-                        { status: 400 }
+                        { status: 400 },
                   );
             }
 
@@ -135,7 +137,7 @@ export async function POST(req) {
                               error:
                                     'Invalid phone number. Enter a valid 10-digit Indian mobile number.',
                         },
-                        { status: 400 }
+                        { status: 400 },
                   );
             }
 
@@ -150,25 +152,25 @@ export async function POST(req) {
 
                   return NextResponse.json(customer, { status: 201 });
             } catch (err) {
-                  // Duplicate phone per owner
                   if (err.code === 11000) {
+                        // duplicate per owner
                         return NextResponse.json(
                               { error: 'Customer with this phone already exists' },
-                              { status: 409 }
+                              { status: 409 },
                         );
                   }
 
                   console.error('POST /api/customers error:', err);
                   return NextResponse.json(
                         { error: 'Internal server error' },
-                        { status: 500 }
+                        { status: 500 },
                   );
             }
       } catch (err) {
             console.error('POST /api/customers error:', err);
             return NextResponse.json(
                   { error: 'Internal server error' },
-                  { status: 500 }
+                  { status: 500 },
             );
       }
 }

@@ -472,10 +472,14 @@ export default function OwnerDashboard() {
                   ].join('\n'),
             );
 
-            const phoneDigits = selected.phone.replace(/[^0-9]/g, '');
-            window.open(`https://wa.me/${phoneDigits}?text=${text}`, '_blank');
+            const rawDigits = String(selected.phone || '').replace(/[^0-9]/g, '');
+            const waNumber =
+                  rawDigits.length === 10 ? `91${rawDigits}` : rawDigits; // E.164 for India
+
+            window.open(`https://wa.me/${waNumber}?text=${text}`, '_blank');
             notify('Opening WhatsApp', 'info');
       };
+
 
       const rootBg = isDark ? 'bg-slate-900' : 'bg-slate-100';
       const textColor = isDark ? 'text-slate-100' : 'text-slate-900';

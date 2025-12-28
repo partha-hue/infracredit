@@ -9,7 +9,7 @@ const OwnerSchema = new Schema(
             provider: { type: String, enum: ['google', 'local'], default: 'local' },
             googleId: { type: String },
       },
-      { timestamps: true }
+      { timestamps: true },
 );
 
 export default mongoose.models.Owner ||
