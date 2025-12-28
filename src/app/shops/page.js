@@ -575,7 +575,7 @@ export default function OwnerDashboard() {
       if (loading) {
             return (
                   <div
-                        className={`min-h-screen flex items-center justify-center ${rootBg} ${textColor}`}
+                        className={`h-screen w-screen flex items-center justify-center ${rootBg} ${textColor}`}
                   >
                         Loading...
                         <ToastContainer
@@ -589,12 +589,12 @@ export default function OwnerDashboard() {
 
       return (
             <div
-                  className={`min-h-screen ${rootBg} ${textColor} flex flex-col md:flex-row`}
+                  className={`fixed inset-0 ${rootBg} ${textColor} flex flex-col md:flex-row`}
             >
-                  <div className="flex flex-1 max-h-screen w-full">
+                  <div className="flex flex-1 h-full w-full overflow-hidden">
                         {/* LEFT: CUSTOMER LIST */}
                         <aside
-                              className={`w-full md:w-80 ${sidebarBg} border-r ${sidebarBorder} flex flex-col`}
+                              className={`w-full md:w-80 ${sidebarBg} border-r ${sidebarBorder} flex flex-col h-full`}
                         >
                               {/* Top bar */}
                               <div
@@ -627,7 +627,7 @@ export default function OwnerDashboard() {
                                                 className="bg-transparent flex-1 text-xs focus:outline-none"
                                           />
                                     </div>
-                                    <div className="flex gap-1 text-[10px]">
+                                    <div className="flex gap-1 text-[10px] overflow-x-auto no-scrollbar pb-1">
                                           <button
                                                 onClick={() => setFilter('all')}
                                                 className={`px-3 py-1 rounded-full border ${filter === 'all'
@@ -772,9 +772,9 @@ export default function OwnerDashboard() {
                         </aside>
 
                         {/* RIGHT: CHAT WINDOW */}
-                        <main className={`flex-1 flex flex-col ${chatBg}`}>
+                        <main className={`flex-1 h-full flex flex-col ${chatBg}`}>
                               {!selected ? (
-                                    <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
+                                    <div className="flex-1 flex items-center justify-center text-slate-500 text-sm px-4 text-center">
                                           Select a customer to view Borrow &amp; Payment history.
                                     </div>
                               ) : (
