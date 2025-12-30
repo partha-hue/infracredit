@@ -2,142 +2,88 @@
 
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 
-// TOKEN HELPER
-const getToken = () => {
-      if (typeof window === 'undefined') return null;
-      return localStorage.getItem('token');
+// === UNIVERSAL MOBILE FIXES ===
+const setViewportHeight = () => {
+      if (typeof window === 'undefined') return;
+      let vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
 };
 
-// DATETIME FORMATTER
+const getSafeArea = () => {
+      if (typeof window === 'undefined') return { top: 0, bottom: 0 };
+
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const bottomNav = isAndroid ? 34 : 34; // Gesture nav + status bar
+
+      return {
+            top: 0,
+            bottom: Math.max(0, bottomNav)
+      };
+};
+
+// === UTILITIES ===
+const getToken = () => typeof window === 'undefined' ? null : localStorage.getItem('token');
 const formatDateTime = (value) => {
       if (!value) return '';
-      const d = new Date(value);
-      if (Number.isNaN(d.getTime())) return String(value);
-      return d.toLocaleString('en-IN', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
+      return new Date(value).toLocaleString('en-IN', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
       });
 };
 
-// PUBLIC KHATA URL HELPER
-const getPublicKhataUrl = (phone) => {
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-      return `${origin}/khata/${encodeURIComponent(phone)}`;
-};
-
-// API LAYER
+// === API ===
 const API = {
       listCustomers: async () => {
             const token = getToken();
-            if (!token) throw new Error('No token');
             const res = await fetch('/api/customers', {
-                  headers: { 'Authorization': `Bearer ${token}` },
+                  headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!res.ok) throw new Error('listCustomers failed');
+            if (!res.ok) throw new Error('Failed to load');
             return res.json();
       },
-
       addCustomer: async (name, phone) => {
             const token = getToken();
-            if (!token) throw new Error('No token');
             const res = await fetch('/api/customers', {
                   method: 'POST',
-                  headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                  },
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                   body: JSON.stringify({ name, phone })
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'addCustomer failed');
-            return data;
+            if (!res.ok) throw new Error('Failed to add');
+            return res.json();
       },
-
       addTxn: async (phone, type, amount, note) => {
             const token = getToken();
-            if (!token) throw new Error('No token');
             const res = await fetch(`/api/customers/${encodeURIComponent(phone)}`, {
                   method: 'POST',
-                  headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                  },
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                   body: JSON.stringify({ type, amount, note })
             });
-            if (!res.ok) throw new Error('addTxn failed');
+            if (!res.ok) throw new Error('Failed to save');
             return res.json();
       }
 };
 
-// TOAST SYSTEM (IN-APP)
-const TOAST_DURATION = 3200;
-
-const ToastContainer = ({ toasts, removeToast, isDark }) => {
-      if (!toasts.length) return null;
-
-      const baseBg = isDark ? 'bg-slate-900/95 backdrop-blur-sm' : 'bg-white';
-      const baseBorder = isDark ? 'border-slate-700' : 'border-slate-300';
-      const shadow = isDark ? 'shadow-[0_18px_40px_rgba(15,23,42,0.75)]' : 'shadow-[0_18px_40px_rgba(15,23,42,0.25)]';
-
-      const typeStyles = {
-            success: 'border-emerald-500/70',
-            error: 'border-rose-500/70',
-            info: 'border-sky-500/70',
-      };
-
-      const typeAccent = {
-            success: 'bg-emerald-500',
-            error: 'bg-rose-500',
-            info: 'bg-sky-500',
-      };
-
-      const typeIcon = {
-            success: '✅',
-            error: '❌',
-            info: 'ℹ️',
-      };
-
-      return (
-            <div className="fixed z-[60] inset-x-0 top-4 flex flex-col items-center space-y-2 pointer-events-none p-2">
-                  {toasts.map(t => (
-                        <div key={t.id} className={`pointer-events-auto px-4 py-3 rounded-2xl border ${baseBg} ${baseBorder} ${typeStyles[t.type]} ${shadow} max-w-sm w-[90vw] sm:w-[95vw] md:w-[80vw] lg:w-105 flex items-start gap-3 animate-slide-down-fade`}>
-                              <div className="mt-0.5 w-7 h-7 rounded-full flex items-center justify-center text-xs text-white shrink-0" style={{ backgroundColor: typeAccent[t.type] }}>
-                                    {typeIcon[t.type]}
+// === TOAST ===
+const ToastContainer = ({ toasts, removeToast }) => (
+      <div className="fixed inset-x-0 top-4 z-[10000] flex flex-col items-center space-y-2 px-4 pointer-events-none">
+            {toasts.map(t => (
+                  <div key={t.id} className="w-full max-w-sm p-4 rounded-2xl shadow-2xl bg-white/95 backdrop-blur-xl border animate-slide-down">
+                        <div className="flex items-center gap-3">
+                              <span className="text-2xl">{t.type === 'error' ? '❌' : '✅'}</span>
+                              <div className="flex-1">
+                                    <p className="font-bold">{t.title}</p>
+                                    {t.message && <p className="text-sm opacity-75">{t.message}</p>}
                               </div>
-                              <div className="flex-1 min-w-0">
-                                    <p className={`text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-50' : 'text-slate-900'}`}>{t.title}</p>
-                                    {t.message && (
-                                          <p className={`mt-0.5 text-[11px] sm:text-xs leading-snug ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>
-                                                {t.message}
-                                          </p>
-                                    )}
-                              </div>
-                              <button
-                                    onClick={() => removeToast(t.id)}
-                                    className="ml-1 text-[11px] text-slate-400 hover:text-slate-200 transition-colors select-none shrink-0"
-                              >
-                                    ✕
-                              </button>
+                              <button onClick={() => removeToast(t.id)} className="p-1 rounded-full hover:bg-slate-200">✕</button>
                         </div>
-                  ))}
-                  <style jsx>{`
-        @keyframes slide-down-fade {
-          0% { opacity: 0; transform: translateY(-12px) scale(0.98); }
-          100% { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        .animate-slide-down-fade {
-          animation: slide-down-fade 0.18s ease-out both;
-        }
-      `}</style>
-            </div>
-      );
-};
+                  </div>
+            ))}
+      </div>
+);
 
-// MAIN COMPONENT
+// === MAIN APP ===
 export default function OwnerDashboard() {
+      // STATE
       const [customers, setCustomers] = useState([]);
       const [selected, setSelected] = useState(null);
       const [loading, setLoading] = useState(true);
@@ -147,775 +93,447 @@ export default function OwnerDashboard() {
       const [txnAmount, setTxnAmount] = useState('');
       const [txnNote, setTxnNote] = useState('');
       const [search, setSearch] = useState('');
-      const [filter, setFilter] = useState('all'); // all, due, cleared
-      const [theme, setTheme] = useState('dark');
-      const [lastDeleted, setLastDeleted] = useState(null); // {customer, timeoutId}
+      const [filter, setFilter] = useState('all');
       const [chatSearch, setChatSearch] = useState('');
-      const [selectedTxnIds, setSelectedTxnIds] = useState(new Set());
-      const [chatMenuOpen, setChatMenuOpen] = useState(false);
-      const [editingIndex, setEditingIndex] = useState(null);
-      const messagesEndRef = useRef(null);
+      const [showListView, setShowListView] = useState(true);
       const [toasts, setToasts] = useState([]);
+      const [safeArea, setSafeArea] = useState({ top: 0, bottom: 0 });
+      const messagesEndRef = useRef(null);
 
-      // NEW: responsive behavior for WhatsApp-style flow
-      const [isMobileView, setIsMobileView] = useState(true);
-      const [showListOnMobile, setShowListOnMobile] = useState(true);
+      // MOBILE DETECTION
+      const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
 
-      const isDark = theme === 'dark';
-
+      // NOTIFY
       const notify = (title, type = 'info', message) => {
-            const id = Date.now() + Math.random();
+            const id = Date.now();
             setToasts(prev => [...prev, { id, title, message, type }]);
-            setTimeout(() => {
-                  setToasts(prev => prev.filter(t => t.id !== id));
-            }, TOAST_DURATION);
+            setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 3000);
       };
 
-      const removeToast = (id) => {
-            setToasts(prev => prev.filter(t => t.id !== id));
-      };
-
-      const load = async () => {
+      // LOAD DATA
+      const loadData = async () => {
             try {
+                  setLoading(true);
                   const data = await API.listCustomers();
                   setCustomers(data);
-                  if (!selected && data.length) setSelected(data[0]);
-                  if (selected) {
-                        const fresh = data.find(c => c.phone === selected.phone);
-                        if (fresh) setSelected(fresh);
-                  }
+                  if (data.length > 0 && !selected) setSelected(data[0]);
             } catch (err) {
-                  console.error(err);
-                  notify('Session expired', 'error', 'Please login again.');
+                  notify('Error', 'error', 'Please login again');
             } finally {
                   setLoading(false);
             }
       };
 
+      // EFFECTS
       useEffect(() => {
-            load();
-            // eslint-disable-next-line react-hooks/exhaustive-deps
+            loadData();
+
+            // PERFECT VIEWPORT HANDLING
+            setViewportHeight();
+            window.addEventListener('resize', setViewportHeight);
+            window.addEventListener('orientationchange', () => {
+                  setTimeout(setViewportHeight, 100);
+            });
+
+            // SAFE AREA
+            setSafeArea(getSafeArea());
+
+            return () => {
+                  window.removeEventListener('resize', setViewportHeight);
+                  window.removeEventListener('orientationchange', () => { });
+            };
       }, []);
 
-      // detect mobile vs desktop (WhatsApp: list-only on mobile, split view on desktop)
       useEffect(() => {
-            const handleResize = () => {
-                  const mobile = window.innerWidth < 768; // Tailwind md breakpoint
-                  setIsMobileView(mobile);
-
-                  if (!mobile) {
-                        // always show both on desktop
-                        setShowListOnMobile(true);
-                  } else {
-                        // on mobile, default to list if nothing selected
-                        if (!selected) setShowListOnMobile(true);
-                  }
-            };
-
-            handleResize();
-            window.addEventListener('resize', handleResize);
-            return () => window.removeEventListener('resize', handleResize);
-      }, [selected]);
-
-      const selectedCustomer = useMemo(() => {
-            if (!selected) return null;
-            return customers.find(c => c.phone === selected.phone) || selected;
+            if (messagesEndRef.current) {
+                  messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+            }
       }, [customers, selected]);
 
+      // COMPUTED
       const filteredCustomers = useMemo(() => {
-            const term = search.trim().toLowerCase();
+            const term = search.toLowerCase();
             return customers.filter(c => {
-                  const matchesSearch = !term ||
+                  const match = !term ||
                         c.name?.toLowerCase().includes(term) ||
-                        c.phone?.toLowerCase().includes(term);
-
-                  let matchesFilter = true;
-                  if (filter === 'due') {
-                        matchesFilter = c.currentDue > 0;
-                  } else if (filter === 'cleared') {
-                        matchesFilter = c.currentDue <= 0;
-                  }
-
-                  return matchesSearch && matchesFilter;
+                        c.phone.includes(term);
+                  const filterMatch = filter === 'all' ||
+                        (filter === 'due' && c.currentDue > 0) ||
+                        (filter === 'cleared' && c.currentDue <= 0);
+                  return match && filterMatch;
             });
       }, [customers, search, filter]);
 
-      const handleAddCustomer = async () => {
-            if (!newName || !newPhone) {
-                  notify('Missing details', 'error', 'Enter customer name and phone.');
-                  return;
-            }
-            if (newPhone.length !== 10) {
-                  notify('Invalid phone', 'error', 'Phone number must be exactly 10 digits.');
-                  return;
-            }
+      const selectedCustomer = customers.find(c => c.phone === selected?.phone) || selected;
+      const filteredLedger = selectedCustomer?.ledger?.filter(t => {
+            const term = chatSearch.toLowerCase();
+            if (!term) return true;
+            return t.note?.toLowerCase().includes(term) ||
+                  String(t.amount).includes(term);
+      }) || [];
 
+      // HANDLERS
+      const handleAddCustomer = async () => {
+            if (!newName.trim() || newPhone.length !== 10) {
+                  notify('Error', 'error', 'Enter valid name & 10-digit phone');
+                  return;
+            }
             try {
-                  const created = await API.addCustomer(newName, newPhone);
-                  setCustomers(prev => [...prev, created]);
-                  setSelected(created);
-                  setNewName('');
-                  setNewPhone('');
-                  notify('Customer added', 'success', created.name);
-                  if (isMobileView) setShowListOnMobile(false);
+                  const customer = await API.addCustomer(newName.trim(), newPhone);
+                  setCustomers(prev => [...prev, customer]);
+                  setSelected(customer);
+                  setNewName(''); setNewPhone('');
+                  notify('Success', 'success', `${customer.name} added`);
+                  if (isMobile) setShowListView(false);
             } catch (err) {
-                  notify('Failed to add customer', 'error', err.message);
+                  notify('Error', 'error', err.message);
             }
       };
 
       const handleSaveTxn = async () => {
-            if (!selected || !txnAmount) {
-                  notify('Missing amount', 'error', 'Enter a transaction amount.');
+            if (!selectedCustomer || !txnAmount) {
+                  notify('Error', 'error', 'Select customer & enter amount');
                   return;
             }
-
-            // EDIT MODE
-            if (editingIndex !== null && editingIndex >= 0) {
-                  const old = selected.ledger[editingIndex];
-                  if (!old) {
-                        notify('Edit failed', 'error', 'Transaction not found.');
-                        return;
-                  }
-
-                  const updatedEntry = {
-                        ...old,
-                        type: txnType,
-                        amount: Number(txnAmount),
-                        note: txnNote,
-                  };
-
-                  const newLedger = selected.ledger.map((t, i) =>
-                        i === editingIndex ? updatedEntry : t
-                  );
-
-                  const updatedCustomer = {
-                        ...selected,
-                        ledger: newLedger,
-                  };
-
-                  setSelected(updatedCustomer);
-                  setCustomers(prev =>
-                        prev.map(c =>
-                              c.phone === selected.phone ? updatedCustomer : c
-                        )
-                  );
-
-                  setEditingIndex(null);
-                  setSelectedTxnIds(new Set());
-                  setChatMenuOpen(false);
-                  setTxnAmount('');
-                  setTxnNote('');
-                  notify('Transaction updated', 'success');
-                  return;
-            }
-
-            // NEW TRANSACTION
             try {
-                  const updated = await API.addTxn(selected.phone, txnType, Number(txnAmount), txnNote);
-                  setSelectedTxnIds(new Set());
-                  setChatMenuOpen(false);
+                  const updated = await API.addTxn(selectedCustomer.phone, txnType, Number(txnAmount), txnNote);
                   setSelected(updated);
-                  setCustomers(prev =>
-                        prev.map(c => c.phone === updated.phone ? updated : c)
-                  );
-                  setTxnAmount('');
-                  setTxnNote('');
-                  notify('Transaction saved', 'success');
+                  setCustomers(prev => prev.map(c => c.phone === updated.phone ? updated : c));
+                  setTxnAmount(''); setTxnNote('');
+                  notify('Saved', 'success', 'Transaction recorded');
             } catch (err) {
-                  notify('Failed to save', 'error', err.message);
+                  notify('Error', 'error', 'Failed to save');
             }
       };
 
-      const handleDeleteCustomer = async (customer) => {
-            const ok = window.confirm(`Delete customer ${customer.name} and all its ledger entries?`);
-            if (!ok) return;
-
-            setCustomers(prev => prev.filter(c => c.phone !== customer.phone));
-            if (selected?.phone === customer.phone) {
-                  setSelected(null);
-                  setSelectedTxnIds(new Set());
-                  setChatMenuOpen(false);
-                  if (isMobileView) setShowListOnMobile(true);
-            }
-
-            if (lastDeleted?.timeoutId) clearTimeout(lastDeleted.timeoutId);
-
-            const timeoutId = setTimeout(async () => {
-                  try {
-                        await fetch(`/api/customers/${encodeURIComponent(customer.phone)}`, {
-                              method: 'DELETE',
-                              headers: { 'Authorization': `Bearer ${getToken()}` }
-                        });
-                  } catch (err) {
-                        console.error('deleteCustomer API error after undo window:', err);
-                        notify('Server delete failed', 'error', 'Customer was removed locally.');
-                  }
-                  setLastDeleted(null);
-            }, 10000);
-
-            setLastDeleted({ customer, timeoutId });
-            notify('Customer deleted', 'info', 'You can undo for 10 seconds.');
-      };
-
-      const handleUndoDelete = () => {
-            if (!lastDeleted) return;
-            const { customer, timeoutId } = lastDeleted;
-            clearTimeout(timeoutId);
-            setCustomers(prev => [customer, ...prev.filter(c => c.phone !== customer.phone)]);
-            if (!selected) setSelected(customer);
-            setLastDeleted(null);
-            notify('Delete undone', 'success');
-      };
-
-      const sendDueReminder = () => {
-            if (!selected) return;
-
-            const lastTxn = selected.ledger[selected.ledger.length - 1] || null;
-            const dateStr = lastTxn?.date;
-            const typeLabel = lastTxn?.type === 'credit' ? 'Udhaar' : 'Payment';
-            const amountStr = lastTxn ? `₹${lastTxn.amount}` : '';
-            const noteStr = lastTxn?.note ? ` - ${lastTxn.note}` : '';
-
-            const khataUrl = getPublicKhataUrl(selected.phone);
-            const text = encodeURIComponent(
-                  `InfraCredit Statement for ${selected.name}\n` +
-                  `Phone: ${selected.phone}\n` +
-                  `Current Due: ₹${selected.currentDue}\n\n` +
-                  (lastTxn ? `Last entry: ${typeLabel} ${amountStr} on ${dateStr}${noteStr}` : 'There is no ledger entry yet.') +
-                  `\n\nSee your full khata here: ${khataUrl}\n\n` +
-                  `InfraCredit Khata.`
-            );
-
-            const rawDigits = String(selected.phone).replace(/[^0-9]/g, '');
-            const waNumber = rawDigits.length === 10 ? `91${rawDigits}` : rawDigits; // E.164 for India
-
-            window.open(`https://wa.me/${waNumber}?text=${text}`, '_blank');
-            notify('Opening WhatsApp', 'info');
-      };
-
-      const rootBg = isDark ? 'bg-slate-900' : 'bg-slate-50';
-      const textColor = isDark ? 'text-slate-100' : 'text-slate-900';
-      const sidebarBg = isDark ? 'bg-slate-950' : 'bg-white';
-      const sidebarBorder = isDark ? 'border-slate-800' : 'border-slate-200';
-      const headerBg = isDark ? 'bg-slate-900/95 backdrop-blur-sm' : 'bg-slate-50/80 backdrop-blur-sm';
-      const chipBg = isDark ? 'bg-slate-900/50' : 'bg-slate-100';
-      const inputBg = isDark ? 'bg-slate-800/50 backdrop-blur-sm' : 'bg-slate-200/50';
-      const chatBg = isDark
-            ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900'
-            : 'bg-gradient-to-br from-slate-50 via-white to-slate-50';
-      const bubbleCredit = isDark
-            ? 'bg-emerald-600 text-slate-900'
-            : 'bg-emerald-500 text-white';
-      const bubblePayment = isDark
-            ? 'bg-slate-800 text-slate-100'
-            : 'bg-white text-slate-900';
-
-      const scrollToBottom = useCallback(() => {
-            if (messagesEndRef.current) {
-                  messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            }
-      }, []);
-
-      useEffect(() => {
-            scrollToBottom();
-      }, [selected?.phone, selected?.ledger?.length, scrollToBottom]);
-
-      const toggleTxnSelect = (idx) => {
-            setSelectedTxnIds(prev => {
-                  const next = new Set(prev);
-                  if (next.has(idx)) {
-                        next.delete(idx);
-                  } else {
-                        next.add(idx);
-                  }
-                  return next;
-            });
-      };
-
-      const clearTxnSelection = () => {
-            setSelectedTxnIds(new Set());
-            setChatMenuOpen(false);
-            setEditingIndex(null);
-      };
-
-      const handleChatMenuClick = (e) => {
-            e.stopPropagation();
-            if (selectedTxnIds.size === 0) return;
-            setChatMenuOpen(v => !v);
-      };
-
-      const handleTxnAction = (action) => {
-            if (!selected || selectedTxnIds.size === 0) return;
-
-            const idsArray = Array.from(selectedTxnIds);
-            const txns = selected.ledger?.filter((_, idx) => idsArray.includes(idx));
-
-            if (action === 'details') {
-                  const msg = txns
-                        .map(t => `${t.type.toUpperCase()} ₹${t.amount} on ${formatDateTime(t.createdAt || t.date)}, ${t.note || '-'}`)
-                        .join('\n');
-                  notify('Transaction details', 'info', msg);
-                  clearTxnSelection();
-                  return;
-            }
-
-            if (action === 'delete') {
-                  const remaining = selected.ledger.filter((_, idx) => !idsArray.includes(idx));
-                  const updated = { ...selected, ledger: remaining };
-                  setSelected(updated);
-                  setCustomers(prev =>
-                        prev.map(c => c.phone === selected.phone ? updated : c)
-                  );
-                  clearTxnSelection();
-                  notify('Transactions deleted', 'success');
-                  return;
-            }
-
-            if (action === 'edit') {
-                  if (txns.length !== 1) {
-                        notify('Select only one entry', 'error', 'Edit is allowed for one entry at a time.');
-                        clearTxnSelection();
-                        return;
-                  }
-                  const t = txns[0];
-                  const indexInLedger = selected.ledger.findIndex(item => item === t);
-                  setEditingIndex(indexInLedger);
-                  setTxnType(t.type || 'credit');
-                  setTxnAmount(String(t.amount));
-                  setTxnNote(t.note || '');
-                  setChatMenuOpen(false);
-                  notify('Edit mode', 'info', 'Update the fields and press Save.');
-                  return;
-            }
-      };
-
-      const filteredLedger = useMemo(() => {
-            if (!selected || !selected.ledger) return [];
-
-            const term = chatSearch.trim().toLowerCase();
-            if (!term) return selected.ledger;
-
-            return selected.ledger.filter(t => {
-                  const note = t.note?.toLowerCase();
-                  const amount = String(t.amount).toLowerCase();
-                  const when = formatDateTime(t.createdAt || t.date).toLowerCase();
-                  return note?.includes(term) || amount.includes(term) || when.includes(term);
-            });
-      }, [selected, chatSearch]);
+      const toggleCustomerView = () => setShowListView(!showListView);
 
       if (loading) {
             return (
-                  <div className={`h-screen w-screen flex items-center justify-center ${rootBg} ${textColor}`}>
-                        <div className="text-xl">Loading...</div>
+                  <div className="fixed inset-0 bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
+                        <div className="w-20 h-20 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
                   </div>
             );
       }
 
-      // helper flags for layout
-      const showSidebar = !isMobileView || (isMobileView && showListOnMobile);
-      const showChatPane = !isMobileView || (isMobileView && !showListOnMobile);
-
       return (
-            <div className={`fixed inset-0 ${rootBg} ${textColor} flex flex-col md:flex-row min-h-screen`}>
-                  <ToastContainer toasts={toasts} removeToast={removeToast} isDark={isDark} />
+            <>
+                  {/* PERFECT MOBILE CSS */}
+                  <style jsx global>{`
+        :root {
+          --vh: 1vh;
+          --safe-bottom: ${safeArea.bottom}px;
+        }
+        
+        * {
+          box-sizing: border-box;
+        }
+        
+        html, body {
+          margin: 0;
+          padding: 0;
+          height: 100vh;
+          height: calc(var(--vh) * 100);
+          overflow: hidden;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          -webkit-font-smoothing: antialiased;
+        }
+        
+        #__next {
+          height: 100vh;
+          height: calc(var(--vh) * 100);
+          overflow: hidden;
+        }
+        
+        input, select, button {
+          font-size: 16px; /* Prevent zoom */
+          -webkit-appearance: none;
+          appearance: none;
+        }
+        
+        /* HIDE ALL SCROLLBARS */
+        ::-webkit-scrollbar { display: none; }
+        ::-moz-scrollbar { display: none; }
+        * { scrollbar-width: none; -ms-overflow-style: none; }
+      `}</style>
 
-                  <div className="flex flex-1 h-full w-full overflow-hidden">
+                  {/* FULLSCREEN APP */}
+                  <div className="h-[100vh] h-[calc(var(--vh)*100)] w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col overflow-hidden">
 
-                        {/* LEFT: CUSTOMER LIST (WhatsApp chat list) */}
-                        {showSidebar && (
-                              <aside className={`w-full md:w-80 ${sidebarBg} ${sidebarBorder} border-r flex flex-col h-full`}>
-                                    {/* Top bar */}
-                                    <div className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b ${sidebarBorder}`}>
-                                          <div>
-                                                <h1 className="text-lg font-semibold">InfraCredit</h1>
-                                                <p className="text-[10px] text-slate-400">Digital Khata</p>
+                        {/* TOASTS */}
+                        <ToastContainer toasts={toasts} removeToast={id => setToasts(p => p.filter(t => t.id !== id))} />
+
+                        <div className="flex flex-1 overflow-hidden">
+
+                              {/* CUSTOMER LIST - MOBILE FULLSCREEN */}
+                              {showListView && (
+                                    <div className="w-full h-[100vh] h-[calc(var(--vh)*100)] bg-slate-950/95 backdrop-blur-xl flex flex-col">
+
+                                          {/* HEADER */}
+                                          <div className="p-6 border-b border-slate-800/50 sticky top-0 z-50 bg-slate-900/95 backdrop-blur-2xl">
+                                                <div className="flex items-center justify-between">
+                                                      <h1 className="text-3xl font-black bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 bg-clip-text text-transparent">
+                                                            InfraCredit
+                                                      </h1>
+                                                      <div className="flex items-center gap-4">
+                                                            <button className="p-3 rounded-2xl hover:bg-emerald-500/20 transition-all">⭐</button>
+                                                      </div>
+                                                </div>
+                                                <p className="text-slate-400 text-lg mt-2">Digital Khata App</p>
                                           </div>
-                                          <button
-                                                onClick={() => setTheme(isDark ? 'light' : 'dark')}
-                                                className="text-xl rounded-full px-2 py-1 hover:bg-slate-700/40 transition-colors select-none"
-                                                title="Toggle theme"
-                                          >
-                                                {isDark ? '☀️' : '🌙'}
-                                          </button>
-                                    </div>
 
-                                    {/* Search + filter */}
-                                    <div className={`px-3 pt-3 ${sidebarBg} space-y-2`}>
-                                          <div className={`flex items-center ${chipBg} rounded-full px-3 py-1.5 gap-2`}>
-                                                <span className="text-slate-400 text-sm select-none">🔍</span>
-                                                <input
-                                                      value={search}
-                                                      onChange={e => setSearch(e.target.value)}
-                                                      placeholder="Search name or number"
-                                                      className={`bg-transparent flex-1 text-xs focus:outline-none`}
-                                                />
+                                          {/* SEARCH */}
+                                          <div className="p-6 sticky top-[120px] z-20 bg-slate-900/90 backdrop-blur-xl">
+                                                <div className="relative">
+                                                      <input
+                                                            value={search}
+                                                            onChange={e => setSearch(e.target.value)}
+                                                            placeholder="Search customers..."
+                                                            className="w-full h-16 px-5 pl-14 pr-5 bg-slate-800/60 rounded-3xl text-xl backdrop-blur-xl border-2 border-slate-700/50 focus:border-emerald-400 focus:outline-none transition-all shadow-xl"
+                                                      />
+                                                      <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl text-slate-500">🔍</span>
+                                                </div>
                                           </div>
 
-                                          <div className="flex gap-1 text-[10px] overflow-x-auto no-scrollbar pb-1">
-                                                <button
-                                                      onClick={() => setFilter('all')}
-                                                      className={`px-3 py-1 rounded-full border ${filter === 'all' ? 'bg-emerald-500 text-black border-emerald-500' : `${chipBg} ${sidebarBorder} text-slate-300`}`}
-                                                >
-                                                      All
-                                                </button>
-                                                <button
-                                                      onClick={() => setFilter('due')}
-                                                      className={`px-3 py-1 rounded-full border ${filter === 'due' ? 'bg-amber-500 text-black border-amber-500' : `${chipBg} ${sidebarBorder} text-slate-300`}`}
-                                                >
-                                                      Credit Due
-                                                </button>
-                                                <button
-                                                      onClick={() => setFilter('cleared')}
-                                                      className={`px-3 py-1 rounded-full border ${filter === 'cleared' ? 'bg-sky-500 text-black border-sky-500' : `${chipBg} ${sidebarBorder} text-slate-300`}`}
-                                                >
-                                                      Cleared
-                                                </button>
+                                          {/* FILTERS */}
+                                          <div className="px-6 py-4 sticky top-[200px] z-10 bg-slate-900/90 backdrop-blur-xl">
+                                                <div className="flex gap-3 overflow-x-auto pb-4 -mb-4">
+                                                      {['all', 'due', 'cleared'].map(f => (
+                                                            <button
+                                                                  key={f}
+                                                                  onClick={() => setFilter(f)}
+                                                                  className={`flex-shrink-0 px-8 py-4 rounded-3xl font-bold text-lg shadow-2xl transition-all ${filter === f
+                                                                              ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-black shadow-emerald-500/50 scale-105'
+                                                                              : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/70 hover:shadow-slate-500/30'
+                                                                        }`}
+                                                            >
+                                                                  {f === 'all' ? 'All' : f === 'due' ? 'Due' : 'Cleared'}
+                                                            </button>
+                                                      ))}
+                                                </div>
                                           </div>
-                                    </div>
 
-                                    {/* New customer form */}
-                                    <div className={`px-3 pb-3 pt-2 ${sidebarBg} border-b ${sidebarBorder}`}>
-                                          <div className={`${headerBg} rounded-2xl p-3 space-y-2`}>
-                                                <input
-                                                      placeholder="Customer Name"
-                                                      className={`${inputBg} rounded-full px-3 py-2 w-full text-xs focus:outline-none`}
-                                                      value={newName}
-                                                      onChange={e => setNewName(e.target.value)}
-                                                />
-                                                <input
-                                                      placeholder="Phone (10 digits)"
-                                                      className={`${inputBg} rounded-full px-3 py-2 w-full text-xs focus:outline-none`}
-                                                      value={newPhone}
-                                                      onChange={e => {
-                                                            const digits = e.target.value.replace(/[^0-9]/g, '');
-                                                            if (digits.length <= 10) setNewPhone(digits);
-                                                      }}
-                                                />
-                                                <button
-                                                      onClick={handleAddCustomer}
-                                                      className="mt-1 w-full bg-emerald-500 hover:bg-emerald-600 rounded-full py-2 text-xs font-semibold text-black"
-                                                >
-                                                      ➕ Add Customer
-                                                </button>
-                                          </div>
-                                    </div>
-
-                                    {/* Undo bar */}
-                                    {lastDeleted && (
-                                          <div className="px-3 py-2 bg-amber-900 text-amber-100 text-[11px] flex items-center justify-between">
-                                                <span>Deleted {lastDeleted.customer.name}. Undo within 10 seconds.</span>
-                                                <button
-                                                      onClick={handleUndoDelete}
-                                                      className="underline font-semibold"
-                                                >
-                                                      Undo
-                                                </button>
-                                          </div>
-                                    )}
-
-                                    {/* Customer list */}
-                                    <div className={`flex-1 overflow-y-auto ${sidebarBg}`}>
-                                          {filteredCustomers.map(c => (
-                                                <div key={c.phone} className={`w-full px-3 py-3 flex items-center gap-3 border-b ${sidebarBorder} ${selected?.phone === c.phone
-                                                            ? isDark
-                                                                  ? 'bg-slate-900'
-                                                                  : 'bg-slate-100'
-                                                            : ''
-                                                      }`}>
+                                          {/* ADD CUSTOMER */}
+                                          <div className="px-6 py-8 border-b border-slate-800/30 bg-gradient-to-b from-slate-900/70 to-transparent">
+                                                <div className="space-y-4 bg-slate-900/50 backdrop-blur-xl rounded-3xl p-6 border border-slate-800/30 shadow-2xl">
+                                                      <input
+                                                            placeholder="👤 Customer Name"
+                                                            value={newName}
+                                                            onChange={e => setNewName(e.target.value)}
+                                                            className="w-full h-14 px-6 bg-slate-800/70 rounded-2xl text-xl backdrop-blur-xl border border-slate-700/50 focus:border-emerald-400 focus:outline-none shadow-lg"
+                                                      />
+                                                      <input
+                                                            placeholder="📱 Phone (10 digits)"
+                                                            value={newPhone}
+                                                            maxLength={10}
+                                                            onChange={e => setNewPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
+                                                            className="w-full h-14 px-6 bg-slate-800/70 rounded-2xl text-xl backdrop-blur-xl border border-slate-700/50 focus:border-emerald-400 focus:outline-none shadow-lg"
+                                                      />
                                                       <button
+                                                            onClick={handleAddCustomer}
+                                                            className="w-full h-16 bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-600 hover:to-teal-500 text-xl font-black rounded-3xl shadow-2xl hover:shadow-emerald-500/50 hover:scale-[1.02] transition-all border-2 border-emerald-400/50"
+                                                      >
+                                                            ➕ Add New Customer
+                                                      </button>
+                                                </div>
+                                          </div>
+
+                                          {/* CUSTOMER LIST */}
+                                          <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-24">
+                                                {filteredCustomers.map(customer => (
+                                                      <button
+                                                            key={customer.phone}
                                                             onClick={() => {
-                                                                  setSelected(c);
-                                                                  clearTxnSelection();
-                                                                  if (isMobileView) setShowListOnMobile(false);
+                                                                  setSelected(customer);
+                                                                  if (isMobile) setShowListView(false);
                                                             }}
-                                                            className="flex-1 flex items-center gap-3 text-left p-2 rounded-xl hover:bg-slate-800/30 transition-colors"
+                                                            className="w-full p-8 rounded-3xl bg-gradient-to-r from-slate-800/60 to-slate-900/60 backdrop-blur-xl border border-slate-700/50 hover:from-emerald-500/10 hover:to-teal-500/10 hover:border-emerald-400/30 hover:shadow-2xl hover:shadow-emerald-500/20 transition-all shadow-xl hover:scale-[1.02]"
                                                       >
-                                                            <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
-                                                                  {c.name?.[0]?.toUpperCase() || 'C'}
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                  <div className="flex justify-between items-center">
-                                                                        <p className="text-sm font-semibold truncate">{c.name}</p>
-                                                                        <span className="text-[10px] text-slate-500">
-                                                                              {c.ledger?.length
-                                                                                    ? formatDateTime(c.ledger[c.ledger.length - 1].createdAt || c.ledger[c.ledger.length - 1].date)
-                                                                                    : ''
-                                                                              }
-                                                                        </span>
+                                                            <div className="flex items-center gap-6">
+                                                                  <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-3xl flex items-center justify-center text-3xl font-black shadow-2xl ring-2 ring-emerald-400/30">
+                                                                        {customer.name?.[0]?.toUpperCase() || 'C'}
                                                                   </div>
-                                                                  <div className="flex justify-between items-center mt-1">
-                                                                        <p className="text-[11px] text-slate-400 truncate max-w-40">
-                                                                              {c.ledger?.length
-                                                                                    ? `${c.ledger[c.ledger.length - 1].note || ''} • ${c.ledger[c.ledger.length - 1].type.toUpperCase()} ₹${c.ledger[c.ledger.length - 1].amount}`
-                                                                                    : 'No transactions yet'
-                                                                              }
-                                                                        </p>
-                                                                        <span className="ml-2 text-[11px] font-semibold" style={{
-                                                                              color: c.currentDue > 0 ? '#f59e0b' : '#10b981'
-                                                                        }}>
-                                                                              ₹{c.currentDue}
-                                                                        </span>
-                                                                  </div>
-                                                            </div>
-                                                      </button>
-                                                      <button
-                                                            onClick={() => handleDeleteCustomer(c)}
-                                                            className="text-[11px] text-red-400 hover:text-red-300 select-none p-2 -m-2 rounded-full hover:bg-red-500/20 transition-colors shrink-0"
-                                                            title="Delete customer"
-                                                      >
-                                                            🗑️
-                                                      </button>
-                                                </div>
-                                          ))}
-                                          {filteredCustomers.length === 0 && (
-                                                <div className="text-center text-xs text-slate-500 mt-8 px-4">
-                                                      No customers match this search/filter.
-                                                </div>
-                                          )}
-                                    </div>
-                              </aside>
-                        )}
-
-                        {/* RIGHT: CHAT WINDOW (WhatsApp conversation screen) */}
-                        {showChatPane && (
-                              <main className={`flex-1 h-full flex flex-col ${chatBg}`}>
-                                    {!selectedCustomer ? (
-                                          <div className="flex-1 flex items-center justify-center text-slate-500 text-sm px-4 text-center">
-                                                Select a customer to view Borrow & Payment history.
-                                          </div>
-                                    ) : (
-                                          <>
-                                                {/* Top bar */}
-                                                <div className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b ${sidebarBorder}`}>
-                                                      <div className="flex items-center gap-3">
-                                                            {/* Mobile back button like WhatsApp */}
-                                                            {isMobileView && (
-                                                                  <button
-                                                                        onClick={() => {
-                                                                              setShowListOnMobile(true);
-                                                                              clearTxnSelection();
-                                                                        }}
-                                                                        className="mr-1 text-xl text-slate-200"
-                                                                  >
-                                                                        ←
-                                                                  </button>
-                                                            )}
-                                                            <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
-                                                                  {selectedCustomer.name?.[0]?.toUpperCase() || 'C'}
-                                                            </div>
-                                                            <div className="min-w-0">
-                                                                  <p className="text-sm font-semibold truncate">{selectedCustomer.name}</p>
-                                                                  <p className="text-[10px] text-slate-400">{selectedCustomer.phone}</p>
-                                                            </div>
-                                                      </div>
-
-                                                      <div className="flex items-center gap-3 text-slate-300">
-                                                            <span className="text-[11px]">{selectedTxnIds.size}</span>
-                                                            <button
-                                                                  onClick={sendDueReminder}
-                                                                  className="hidden sm:inline-flex text-[11px] bg-emerald-600 hover:bg-emerald-500 text-black rounded-full px-3 py-1"
-                                                            >
-                                                                  WhatsApp Reminder
-                                                            </button>
-                                                            <button
-                                                                  onClick={handleChatMenuClick}
-                                                                  disabled={selectedTxnIds.size === 0}
-                                                                  className={`text-xl relative select-none ${selectedTxnIds.size === 0
-                                                                              ? 'text-slate-500 cursor-default'
-                                                                              : 'cursor-pointer hover:scale-110'
-                                                                        } transition-transform`}
-                                                            >
-                                                                  ⋮⋮
-                                                                  {chatMenuOpen && selectedTxnIds.size > 0 && (
-                                                                        <div className="absolute right-0 mt-2 w-32 bg-slate-800 text-[11px] rounded-md shadow-lg z-20 py-1 border border-slate-700">
-                                                                              <button
-                                                                                    className="w-full text-left px-3 py-2 hover:bg-slate-700"
-                                                                                    onClick={() => handleTxnAction('edit')}
-                                                                              >
-                                                                                    ✏️ Edit
-                                                                              </button>
-                                                                              <button
-                                                                                    className="w-full text-left px-3 py-2 hover:bg-slate-700"
-                                                                                    onClick={() => handleTxnAction('delete')}
-                                                                              >
-                                                                                    🗑️ Delete
-                                                                              </button>
-                                                                              <button
-                                                                                    className="w-full text-left px-3 py-2 hover:bg-slate-700"
-                                                                                    onClick={() => handleTxnAction('details')}
-                                                                              >
-                                                                                    ℹ️ Details
-                                                                              </button>
-                                                                              <button
-                                                                                    className="w-full text-left px-3 py-2 hover:bg-slate-700"
-                                                                                    onClick={clearTxnSelection}
-                                                                              >
-                                                                                    ➜ Clear selection
-                                                                              </button>
+                                                                  <div className="flex-1 text-left">
+                                                                        <h3 className="text-2xl font-black text-white">{customer.name}</h3>
+                                                                        <p className="text-slate-400 text-lg mt-1">{customer.phone}</p>
+                                                                        <div className={`mt-3 px-6 py-3 rounded-2xl font-bold text-xl ${customer.currentDue > 0
+                                                                                    ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border-2 border-amber-400/50 shadow-amber-500/20'
+                                                                                    : 'bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border-2 border-emerald-400/50 shadow-emerald-500/20'
+                                                                              }`}>
+                                                                              ₹{Math.abs(customer.currentDue)}
+                                                                              {customer.currentDue > 0 ? ' Due' : ' Paid'}
                                                                         </div>
-                                                                  )}
-                                                            </button>
+                                                                  </div>
+                                                            </div>
+                                                      </button>
+                                                ))}
+
+                                                {filteredCustomers.length === 0 && (
+                                                      <div className="flex flex-col items-center justify-center text-center py-32 text-slate-500">
+                                                            <div className="w-32 h-32 bg-slate-800/50 rounded-3xl flex items-center justify-center text-5xl mb-8 shadow-xl">
+                                                                  👥
+                                                            </div>
+                                                            <h2 className="text-3xl font-black mb-4">No Customers</h2>
+                                                            <p className="text-xl opacity-75">Add your first customer to get started</p>
+                                                      </div>
+                                                )}
+                                          </div>
+                                    </div>
+                              )}
+
+                              {/* KHATA DETAIL VIEW */}
+                              {!showListView && selectedCustomer && (
+                                    <div className="flex-1 flex flex-col h-[100vh] h-[calc(var(--vh)*100)] overflow-hidden">
+
+                                          {/* HEADER */}
+                                          <div className="p-6 border-b border-slate-800/50 sticky top-0 z-50 bg-slate-900/95 backdrop-blur-3xl shadow-2xl">
+                                                <div className="flex items-center justify-between">
+                                                      <button
+                                                            onClick={() => setShowListView(true)}
+                                                            className="p-4 text-3xl rounded-3xl hover:bg-slate-800/50 backdrop-blur-xl transition-all"
+                                                      >
+                                                            ←
+                                                      </button>
+                                                      <div className="flex items-center gap-6">
+                                                            <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-3xl flex items-center justify-center text-3xl font-black shadow-2xl">
+                                                                  {selectedCustomer.name?.[0]?.toUpperCase()}
+                                                            </div>
+                                                            <div>
+                                                                  <h2 className="text-3xl font-black">{selectedCustomer.name}</h2>
+                                                                  <p className="text-slate-400 text-xl">{selectedCustomer.phone}</p>
+                                                            </div>
                                                       </div>
                                                 </div>
 
-                                                {/* Current due banner */}
-                                                <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-300 flex items-center justify-between">
-                                                      <span>Current Due: ₹{selectedCustomer.currentDue}</span>
-                                                      <button
-                                                            onClick={sendDueReminder}
-                                                            className="sm:hidden text-[11px] underline hover:no-underline"
-                                                      >
-                                                            WhatsApp Reminder
-                                                      </button>
-                                                </div>
+                                                {/* DUE BANNER */}
+                                                {selectedCustomer.currentDue > 0 && (
+                                                      <div className="mt-6 p-6 rounded-3xl bg-gradient-to-r from-amber-500/30 via-orange-500/20 to-amber-500/30 border-4 border-amber-400/60 shadow-2xl shadow-amber-500/40 animate-pulse">
+                                                            <div className="flex items-center justify-between">
+                                                                  <span className="text-4xl font-black text-amber-100">₹{selectedCustomer.currentDue}</span>
+                                                                  <span className="text-2xl font-bold text-amber-200">Outstanding</span>
+                                                            </div>
+                                                      </div>
+                                                )}
+                                          </div>
 
-                                                {/* Chat search bar */}
-                                                <div className="px-4 py-2 border-b border-slate-700 text-[11px] flex items-center gap-2">
-                                                      <span className="text-slate-400 select-none">🔍</span>
+                                          {/* SEARCH TRANSACTIONS */}
+                                          <div className="px-6 py-4 sticky top-[140px] z-20 bg-slate-900/90 backdrop-blur-xl">
+                                                <div className="relative">
                                                       <input
                                                             value={chatSearch}
                                                             onChange={e => setChatSearch(e.target.value)}
-                                                            placeholder="Search in this khata by note, amount or date"
-                                                            className="flex-1 bg-transparent focus:outline-none text-xs"
+                                                            placeholder="Search transactions..."
+                                                            className="w-full h-16 px-6 pl-16 pr-16 bg-slate-800/70 rounded-3xl text-xl backdrop-blur-xl border-2 border-slate-700/50 focus:border-emerald-400 focus:outline-none shadow-xl transition-all"
                                                       />
+                                                      <span className="absolute left-7 top-1/2 -translate-y-1/2 text-2xl text-slate-500">🔍</span>
                                                       {chatSearch && (
                                                             <button
                                                                   onClick={() => setChatSearch('')}
-                                                                  className="text-slate-400 select-none hover:text-slate-200"
+                                                                  className="absolute right-7 top-1/2 -translate-y-1/2 p-3 rounded-3xl hover:bg-slate-700/50 text-2xl transition-all"
                                                             >
                                                                   ✕
                                                             </button>
                                                       )}
                                                 </div>
+                                          </div>
 
-                                                {/* Messages area */}
-                                                <div className="flex-1 overflow-y-auto px-2 sm:px-4 py-3 space-y-2 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-900/50">
-                                                      {filteredLedger.length === 0 ? (
-                                                            <div className="flex justify-center mb-2">
-                                                                  <span className="text-[10px] bg-slate-800 text-slate-300 rounded-full px-3 py-1">
-                                                                        Borrow history
-                                                                  </span>
+                                          {/* TRANSACTIONS */}
+                                          <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-[calc(var(--safe-bottom)+120px)]">
+                                                {filteredLedger.length === 0 ? (
+                                                      <div className="flex flex-col items-center justify-center h-full py-40 text-center text-slate-500">
+                                                            <div className="w-32 h-32 bg-slate-800/50 rounded-3xl flex items-center justify-center text-6xl mb-12 shadow-2xl">
+                                                                  📜
                                                             </div>
-                                                      ) : null}
-
-                                                      {filteredLedger
-                                                            .slice()
-                                                            .sort((a, b) => {
-                                                                  const timeA = new Date(a.createdAt || a.date).getTime();
-                                                                  const timeB = new Date(b.createdAt || b.date).getTime();
-                                                                  return timeB - timeA;
-                                                            })
-                                                            .map((t, idx) => {
-                                                                  const isCredit = t.type === 'credit';
-                                                                  const bubbleClass = isCredit ? bubbleCredit : bubblePayment;
-                                                                  const justify = isCredit ? 'flex-end' : 'flex-start';
-                                                                  const when = formatDateTime(t.createdAt || t.date);
-                                                                  const title = t.type === 'credit' ? 'Due' : 'Payment Entry';
-                                                                  const isSelected = selectedTxnIds.has(idx);
-
+                                                            <h3 className="text-4xl font-black mb-6">No Transactions</h3>
+                                                            <p className="text-2xl opacity-75">Record your first udhaar or payment</p>
+                                                      </div>
+                                                ) : (
+                                                      filteredLedger
+                                                            .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date))
+                                                            .map((txn, idx) => {
+                                                                  const isCredit = txn.type === 'credit';
                                                                   return (
-                                                                        <div key={idx} className="w-full flex" style={{ justifyContent: justify }}>
-                                                                              <button
-                                                                                    type="button"
-                                                                                    onClick={() => toggleTxnSelect(idx)}
-                                                                                    className={`max-w-[80%] rounded-2xl px-3 py-2 text-xs shadow-sm text-left ${bubbleClass} border-2 ${isSelected ? 'border-amber-400 ring-2 ring-amber-400/30' : 'border-transparent'
-                                                                                          } hover:scale-[1.02] transition-all duration-200 min-h-[60px]`}
-                                                                              >
-                                                                                    <div className="flex justify-between items-center gap-2">
-                                                                                          <span className="font-semibold">{title} ₹{t.amount}</span>
-                                                                                          <span className="text-[10px] opacity-80">{when}</span>
+                                                                        <div key={idx} className={`flex ${isCredit ? 'justify-end' : 'justify-start'}`}>
+                                                                              <div className={`max-w-[85%] p-8 rounded-3xl shadow-2xl backdrop-blur-xl border-2 transition-all hover:scale-[1.02] cursor-pointer ${isCredit
+                                                                                          ? 'bg-gradient-to-br from-emerald-500/95 to-teal-500/95 border-emerald-400/60 shadow-emerald-500/40'
+                                                                                          : 'bg-gradient-to-br from-slate-800/95 to-slate-900/95 border-slate-700/60 shadow-slate-500/30'
+                                                                                    }`}>
+                                                                                    <div className="flex justify-between items-start gap-6 mb-4">
+                                                                                          <span className={`text-3xl font-black px-4 py-2 rounded-2xl ${isCredit
+                                                                                                      ? 'bg-emerald-400/30 text-emerald-100 border-2 border-emerald-400/50'
+                                                                                                      : 'bg-slate-700/50 text-slate-200 border-2 border-slate-600/50'
+                                                                                                }`}>
+                                                                                                {isCredit ? 'Udhaar' : 'Payment'}
+                                                                                          </span>
+                                                                                          <span className="text-xl opacity-90 whitespace-nowrap">{formatDateTime(txn.createdAt || txn.date)}</span>
                                                                                     </div>
-                                                                                    {t.note && (
-                                                                                          <div className="mt-1 text-[11px] whitespace-pre-line leading-tight">
-                                                                                                {t.note}
-                                                                                          </div>
-                                                                                    )}
-                                                                                    {typeof t.balanceAfter === 'number' && (
-                                                                                          <div className="mt-1 text-[10px] opacity-80 text-right">
-                                                                                                Due after entry: ₹{t.balanceAfter}
-                                                                                          </div>
-                                                                                    )}
-                                                                              </button>
+                                                                                    <div className="text-center">
+                                                                                          <p className="text-5xl font-black mb-4">₹{txn.amount}</p>
+                                                                                          {txn.note && (
+                                                                                                <p className="text-2xl leading-relaxed opacity-95 mb-6 px-6 py-4 bg-black/20 rounded-2xl backdrop-blur-sm border border-slate-700/30">
+                                                                                                      {txn.note}
+                                                                                                </p>
+                                                                                          )}
+                                                                                          {txn.balanceAfter !== undefined && (
+                                                                                                <div className="px-6 py-4 bg-black/30 rounded-2xl backdrop-blur-sm border border-slate-700/50">
+                                                                                                      <span className="text-xl font-bold opacity-90">Balance: ₹{txn.balanceAfter}</span>
+                                                                                                </div>
+                                                                                          )}
+                                                                                    </div>
+                                                                              </div>
                                                                         </div>
                                                                   );
-                                                            })}
+                                                            })
+                                                )}
+                                                <div ref={messagesEndRef} />
+                                          </div>
 
-                                                      {filteredLedger.length === 0 && (
-                                                            <div className="flex flex-col items-center justify-center h-full text-xs text-slate-500">
-                                                                  <p>No transactions match this search.</p>
-                                                                  <p>Clear search or add a new Udhaar/Payment below.</p>
-                                                            </div>
-                                                      )}
+                                          {/* FIXED BOTTOM INPUT - ALWAYS VISIBLE */}
+                                          <div className="px-6 pb-[max(24px,var(--safe-bottom))] pt-6 bg-gradient-to-t from-slate-900/95 to-transparent sticky bottom-0 z-[100] shadow-2xl">
+                                                <div className="bg-slate-900/95 backdrop-blur-3xl rounded-3xl p-6 border-2 border-slate-800/50 shadow-2xl">
+                                                      <div className="flex items-stretch gap-4">
+                                                            <select
+                                                                  value={txnType}
+                                                                  onChange={e => setTxnType(e.target.value)}
+                                                                  className="h-20 px-6 bg-slate-800/70 rounded-3xl text-2xl font-bold border-2 border-slate-700/50 focus:border-emerald-400 focus:outline-none flex-1 min-w-[120px] backdrop-blur-xl"
+                                                            >
+                                                                  <option value="credit">Udhaar</option>
+                                                                  <option value="payment">Payment</option>
+                                                            </select>
 
-                                                      <div ref={messagesEndRef} />
+                                                            <input
+                                                                  type="number"
+                                                                  inputMode="decimal"
+                                                                  placeholder="Amount"
+                                                                  value={txnAmount}
+                                                                  onChange={e => setTxnAmount(e.target.value)}
+                                                                  className="h-20 flex-1 px-8 bg-slate-800/70 rounded-3xl text-3xl font-black border-2 border-slate-700/50 focus:border-emerald-400 focus:outline-none backdrop-blur-xl shadow-xl"
+                                                            />
+
+                                                            <input
+                                                                  placeholder="Note"
+                                                                  value={txnNote}
+                                                                  onChange={e => setTxnNote(e.target.value)}
+                                                                  className="h-20 flex-1 px-8 bg-slate-800/70 rounded-3xl text-xl border-2 border-slate-700/50 focus:border-emerald-400 focus:outline-none backdrop-blur-xl shadow-xl"
+                                                            />
+
+                                                            <button
+                                                                  onClick={handleSaveTxn}
+                                                                  disabled={!selectedCustomer || !txnAmount}
+                                                                  className={`h-20 px-12 rounded-3xl font-black text-2xl shadow-2xl transition-all flex items-center justify-center ${!selectedCustomer || !txnAmount
+                                                                              ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed border-2 border-slate-700/50'
+                                                                              : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-black border-2 border-emerald-400/50 shadow-emerald-500/50 hover:shadow-emerald-500/75 hover:scale-[1.05]'
+                                                                        }`}
+                                                            >
+                                                                  ➕
+                                                            </button>
+                                                      </div>
                                                 </div>
-
-                                                {/* Bottom input bar */}
-                                                <div className={`px-2 sm:px-4 py-2 ${headerBg} border-t ${sidebarBorder} flex items-center gap-2`}>
-                                                      <select
-                                                            className={`${inputBg} text-[11px] rounded-full px-2 py-2 text-slate-100 focus:outline-none`}
-                                                            value={txnType}
-                                                            onChange={e => setTxnType(e.target.value)}
-                                                      >
-                                                            <option value="credit">Credit Due</option>
-                                                            <option value="payment">Payment</option>
-                                                      </select>
-
-                                                      <input
-                                                            type="number"
-                                                            placeholder="Amount"
-                                                            className={`${inputBg} rounded-full px-3 py-2 w-24 text-xs focus:outline-none`}
-                                                            value={txnAmount}
-                                                            onChange={e => setTxnAmount(e.target.value)}
-                                                      />
-
-                                                      <input
-                                                            placeholder="Note"
-                                                            className={`${inputBg} rounded-full px-3 py-2 flex-1 text-xs focus:outline-none`}
-                                                            value={txnNote}
-                                                            onChange={e => setTxnNote(e.target.value)}
-                                                      />
-
-                                                      <button
-                                                            onClick={handleSaveTxn}
-                                                            disabled={!selectedCustomer || !txnAmount}
-                                                            className={`rounded-full px-4 py-2 text-xs font-semibold ${!selectedCustomer || !txnAmount
-                                                                        ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                                                                        : 'bg-emerald-500 hover:bg-emerald-600 text-black shadow-lg hover:shadow-emerald-500/25 transition-all'
-                                                                  } min-w-[70px]`}
-                                                      >
-                                                            {editingIndex !== null ? 'Update' : 'Save'}
-                                                      </button>
-                                                </div>
-                                          </>
-                                    )}
-                              </main>
-                        )}
+                                          </div>
+                                    </div>
+                              )}
+                        </div>
                   </div>
-
-                  <style jsx global>{`
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .scrollbar-thin::-webkit-scrollbar {
-          width: 4px;
-          height: 4px;
-        }
-        .scrollbar-thin::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .scrollbar-thin::-webkit-scrollbar-thumb {
-          background: rgba(148, 163, 184, 0.5);
-          border-radius: 2px;
-        }
-        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-          background: rgba(148, 163, 184, 0.8);
-        }
-      `}</style>
-            </div>
+            </>
       );
 }
