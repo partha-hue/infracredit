@@ -83,6 +83,8 @@ const API = {
       addTxn: async (phone, type, amount, note) => {
             const token = getToken();
             if (!token) throw new Error('No token - please login');
+            const normalizedPhone = normalizeIndianMobile(phone);
+            if (!normalizedPhone) throw new Error('Invalid phone number');
 
             const res = await fetch(`/api/customers/${encodeURIComponent(phone)}`, {
                   method: 'POST',
@@ -194,6 +196,16 @@ const ToastContainer = ({ toasts, removeToast, isDark }) => {
             </div>
       );
 };
+function normalizeIndianMobile(rawPhone) {
+      if (!rawPhone) return null;
+      let digits = String(rawPhone).replace(/\D/g, '');
+      if (digits.length > 10 && digits.startsWith('91')) {
+            digits = digits.slice(2);
+      }
+      if (!/^[6-9]\d{9}$/.test(digits)) return null;
+      return digits;
+}
+
 
 /* ======================
    MAIN COMPONENT
