@@ -19,31 +19,25 @@ function toObjectId(id) {
       }
 }
 
-// 🔥 FIXED: More flexible phone normalization + detailed logging
 function normalizeIndianMobile(rawPhone) {
-      if (!rawPhone) {
-            console.error('Phone normalization: rawPhone is empty');
-            return null;
-      }
+      if (!rawPhone) return null;
 
       let digits = String(rawPhone).replace(/\D/g, '');
-      console.log(`Phone normalization: "${rawPhone}" → "${digits}"`);
+      console.log(`🔍 Normalizing phone: "${rawPhone}" → "${digits}"`);
 
+      // Strip +91 if present
       if (digits.length > 10 && digits.startsWith('91')) {
             digits = digits.slice(2);
-            console.log('Phone normalization: stripped +91 prefix');
       }
 
-      // 🔥 FIXED: Allow ANY 10-digit number for testing/business use
-      // Original: /^[6-9]\d{9}$/ (strict mobile rule)
-      // New: /^\d{10}$/ (any 10 digits)
-      if (!/^\d{10}$/.test(digits)) {
-            console.error(`Phone validation FAILED: "${digits}" does not match 10 digits`);
-            return null;
+      // 🔥 EMERGENCY FIX: Accept ANY 10-digit number
+      if (digits.length === 10) {
+            console.log(`✅ Phone OK: "${digits}"`);
+            return digits;
       }
 
-      console.log(`Phone normalization SUCCESS: "${digits}"`);
-      return digits;
+      console.error(`❌ Phone INVALID: "${digits}" (must be 10 digits)`);
+      return null;
 }
 
 /* ===== GET /api/customers/[phone] ===== */
