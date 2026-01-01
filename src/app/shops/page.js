@@ -42,12 +42,12 @@ const getPublicKhataUrl = (phone) => {
 };
 
 /* ======================
-   API LAYER
+   API LAYER - FIXED
 ====================== */
 const API = {
       listCustomers: async () => {
             const token = getToken();
-            if (!token) throw new Error('No token');
+            if (!token) throw new Error('No token - please login');
 
             const res = await fetch('/api/customers', {
                   headers: {
@@ -55,13 +55,14 @@ const API = {
                   },
             });
 
-            if (!res.ok) throw new Error('listCustomers failed');
-            return res.json();
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || data.message || 'Failed to load customers');
+            return data;
       },
 
       addCustomer: async (name, phone) => {
             const token = getToken();
-            if (!token) throw new Error('No token');
+            if (!token) throw new Error('No token - please login');
 
             const res = await fetch('/api/customers', {
                   method: 'POST',
@@ -72,16 +73,16 @@ const API = {
                   body: JSON.stringify({ name, phone }),
             });
 
-            const data = await res.json();
+            const data = await res.json().catch(() => ({}));
             if (!res.ok) {
-                  throw new Error(data.error || 'addCustomer failed');
+                  throw new Error(data.error || data.message || 'Failed to add customer');
             }
             return data;
       },
 
       addTxn: async (phone, type, amount, note) => {
             const token = getToken();
-            if (!token) throw new Error('No token');
+            if (!token) throw new Error('No token - please login');
 
             const res = await fetch(`/api/customers/${encodeURIComponent(phone)}`, {
                   method: 'POST',
@@ -89,16 +90,25 @@ const API = {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`,
                   },
-                  body: JSON.stringify({ type, amount, note }),
+                  body: JSON.stringify({
+                        type,
+                        amount,
+                        note,
+                        date: new Date().toISOString()  // 🔥 FIXED: Added date field
+                  }),
             });
 
-            if (!res.ok) throw new Error('addTxn failed');
-            return res.json();
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                  console.error('addTxn API error:', data);
+                  throw new Error(data.error || data.message || `HTTP ${res.status} - Transaction failed`);
+            }
+            return data;
       },
 };
 
 /* ======================
-   TOAST SYSTEM (IN‑APP)
+   TOAST SYSTEM (IN-APP)
 ====================== */
 
 const TOAST_DURATION = 3200;
@@ -131,18 +141,18 @@ const ToastContainer = ({ toasts, removeToast, isDark }) => {
       };
 
       return (
-            <div className="fixed z-60 inset-x-0 top-4 flex flex-col items-center space-y-2 pointer-events-none">
+            <div className="fixed z-50 inset-x-0 top-4 flex flex-col items-center space-y-2 pointer-events-none px-4">
                   {toasts.map((t) => (
                         <div
                               key={t.id}
-                              className={`pointer-events-auto px-4 py-3 rounded-2xl border ${baseBg} ${baseBorder} ${typeStyles[t.type]} ${shadow} max-w-sm w-[90%] sm:w-105 flex items-start gap-3 animate-slide-down-fade`}
+                              className={`pointer-events-auto px-4 py-3 rounded-2xl border ${baseBg} ${baseBorder} ${typeStyles[t.type]} ${shadow} max-w-sm w-full sm:w-96 flex items-start gap-3 animate-slide-down-fade`}
                         >
                               <div
-                                    className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center text-xs text-white ${typeAccent[t.type]}`}
+                                    className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center text-xs text-white flex-shrink-0 ${typeAccent[t.type]}`}
                               >
                                     {typeIcon[t.type]}
                               </div>
-                              <div className="flex-1">
+                              <div className="flex-1 min-w-0">
                                     <p
                                           className={`text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-50' : 'text-slate-900'
                                                 }`}
@@ -151,7 +161,7 @@ const ToastContainer = ({ toasts, removeToast, isDark }) => {
                                     </p>
                                     {t.message && (
                                           <p
-                                                className={`mt-0.5 text-[11px] sm:text-xs leading-snug ${isDark ? 'text-slate-300' : 'text-slate-500'
+                                                className={`mt-0.5 text-[11px] sm:text-xs leading-snug break-words ${isDark ? 'text-slate-300' : 'text-slate-500'
                                                       }`}
                                           >
                                                 {t.message}
@@ -160,7 +170,7 @@ const ToastContainer = ({ toasts, removeToast, isDark }) => {
                               </div>
                               <button
                                     onClick={() => removeToast(t.id)}
-                                    className="ml-1 text-[11px] text-slate-400 hover:text-slate-200 transition-colors select-none"
+                                    className="ml-1 text-[11px] text-slate-400 hover:text-slate-200 transition-colors select-none flex-shrink-0"
                               >
                                     ✕
                               </button>
@@ -206,7 +216,7 @@ export default function OwnerDashboard() {
 
       const [theme, setTheme] = useState('dark');
 
-      const [lastDeleted, setLastDeleted] = useState(null); // { customer, timeoutId }
+      const [lastDeleted, setLastDeleted] = useState(null);
 
       const [chatSearch, setChatSearch] = useState('');
       const [selectedTxnIds, setSelectedTxnIds] = useState(new Set());
@@ -217,7 +227,6 @@ export default function OwnerDashboard() {
 
       const [toasts, setToasts] = useState([]);
 
-      // NEW: responsive behavior for WhatsApp-style flow
       const [isMobileView, setIsMobileView] = useState(true);
       const [showListOnMobile, setShowListOnMobile] = useState(true);
 
@@ -246,7 +255,7 @@ export default function OwnerDashboard() {
                         if (fresh) setSelected(fresh);
                   }
             } catch (err) {
-                  console.error(err);
+                  console.error('Load error:', err);
                   notify('Session expired', 'error', 'Please login again.');
             } finally {
                   setLoading(false);
@@ -255,23 +264,18 @@ export default function OwnerDashboard() {
 
       useEffect(() => {
             load();
-            // eslint-disable-next-line react-hooks/exhaustive-deps
       }, []);
 
-      // detect mobile vs desktop (WhatsApp: list-only on mobile, split view on desktop)
       useEffect(() => {
             const handleResize = () => {
-                  const mobile = window.innerWidth < 768; // Tailwind md breakpoint
+                  const mobile = window.innerWidth < 768;
                   setIsMobileView(mobile);
                   if (!mobile) {
-                        // always show both on desktop
                         setShowListOnMobile(true);
                   } else {
-                        // on mobile, default to list if nothing selected
                         if (!selected) setShowListOnMobile(true);
                   }
             };
-
             handleResize();
             window.addEventListener('resize', handleResize);
             return () => window.removeEventListener('resize', handleResize);
@@ -384,7 +388,8 @@ export default function OwnerDashboard() {
 
                   notify('Transaction saved', 'success');
             } catch (err) {
-                  notify('Failed to save', 'error', err.message || '');
+                  console.error('Transaction save error:', err);
+                  notify('Failed to save', 'error', err.message || 'Check your network and token');
             }
       };
 
@@ -413,14 +418,14 @@ export default function OwnerDashboard() {
                               headers: { Authorization: `Bearer ${getToken()}` },
                         });
                   } catch (err) {
-                        console.error('deleteCustomer API error (after undo window):', err);
+                        console.error('deleteCustomer API error:', err);
                         notify('Server delete failed', 'error', 'Customer was removed locally.');
                   }
                   setLastDeleted(null);
             }, 10000);
 
             setLastDeleted({ customer, timeoutId });
-            notify('Customer deleted', 'info', 'You can undo for 10 seconds.');
+            notify('Customer deleted', 'info', 'Undo within 10 seconds.');
       };
 
       const handleUndoDelete = () => {
@@ -457,7 +462,7 @@ export default function OwnerDashboard() {
             const text = encodeURIComponent(
                   [
                         `InfraCredit Statement for ${selected.name}`,
-                        `Phone:  ${selected.phone}`,
+                        `Phone: ${selected.phone}`,
                         `Current Due: ₹${selected.currentDue}`,
                         '',
                         lastTxn
@@ -474,12 +479,11 @@ export default function OwnerDashboard() {
 
             const rawDigits = String(selected.phone || '').replace(/[^0-9]/g, '');
             const waNumber =
-                  rawDigits.length === 10 ? `91${rawDigits}` : rawDigits; // E.164 for India
+                  rawDigits.length === 10 ? `91${rawDigits}` : rawDigits;
 
             window.open(`https://wa.me/${waNumber}?text=${text}`, '_blank');
             notify('Opening WhatsApp', 'info');
       };
-
 
       const rootBg = isDark ? 'bg-slate-900' : 'bg-slate-100';
       const textColor = isDark ? 'text-slate-100' : 'text-slate-900';
@@ -580,7 +584,7 @@ export default function OwnerDashboard() {
                         notify(
                               'Select only one entry',
                               'error',
-                              'Edit is allowed for one entry at a time.',
+                              'Edit one entry at a time.',
                         );
                         clearTxnSelection();
                   }
@@ -616,7 +620,6 @@ export default function OwnerDashboard() {
             );
       }
 
-      // helper flags for layout
       const showSidebar =
             !isMobileView || (isMobileView && showListOnMobile);
       const showChatPane =
@@ -624,17 +627,17 @@ export default function OwnerDashboard() {
 
       return (
             <div
-                  className={`fixed inset-0 ${rootBg} ${textColor} flex flex-col md:flex-row`}
+                  className={`fixed inset-0 ${rootBg} ${textColor} flex flex-col md:flex-row overflow-hidden`}
             >
                   <div className="flex flex-1 h-full w-full overflow-hidden">
-                        {/* LEFT: CUSTOMER LIST (WhatsApp chat list) */}
+                        {/* LEFT: CUSTOMER LIST */}
                         {showSidebar && (
                               <aside
-                                    className={`w-full md:w-80 ${sidebarBg} border-r ${sidebarBorder} flex flex-col h-full`}
+                                    className={`w-full md:w-80 ${sidebarBg} border-r ${sidebarBorder} flex flex-col h-full overflow-hidden`}
                               >
                                     {/* Top bar */}
                                     <div
-                                          className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b ${sidebarBorder}`}
+                                          className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b ${sidebarBorder} flex-shrink-0`}
                                     >
                                           <div>
                                                 <h1 className="text-lg font-semibold">InfraCredit</h1>
@@ -651,42 +654,42 @@ export default function OwnerDashboard() {
                                     </div>
 
                                     {/* Search + filter */}
-                                    <div className={`px-3 pt-3 ${sidebarBg} space-y-2`}>
+                                    <div className={`px-3 pt-3 pb-2 ${sidebarBg} space-y-2 flex-shrink-0`}>
                                           <div
                                                 className={`flex items-center ${chipBg} rounded-full px-3 py-1.5 gap-2`}
                                           >
-                                                <span className="text-slate-400 text-sm select-none">🔍</span>
+                                                <span className="text-slate-400 text-sm select-none flex-shrink-0">🔍</span>
                                                 <input
                                                       value={search}
                                                       onChange={(e) => setSearch(e.target.value)}
                                                       placeholder="Search name or number"
-                                                      className="bg-transparent flex-1 text-xs focus:outline-none"
+                                                      className="bg-transparent flex-1 text-xs focus:outline-none min-w-0"
                                                 />
                                           </div>
                                           <div className="flex gap-1 text-[10px] overflow-x-auto no-scrollbar pb-1">
                                                 <button
                                                       onClick={() => setFilter('all')}
-                                                      className={`px-3 py-1 rounded-full border ${filter === 'all'
-                                                                  ? 'bg-emerald-500 text-black border-emerald-500'
-                                                                  : `${chipBg} ${sidebarBorder} text-slate-300`
+                                                      className={`px-3 py-1 rounded-full border whitespace-nowrap flex-shrink-0 ${filter === 'all'
+                                                            ? 'bg-emerald-500 text-black border-emerald-500'
+                                                            : `${chipBg} ${sidebarBorder} text-slate-300`
                                                             }`}
                                                 >
                                                       All
                                                 </button>
                                                 <button
                                                       onClick={() => setFilter('due')}
-                                                      className={`px-3 py-1 rounded-full border ${filter === 'due'
-                                                                  ? 'bg-amber-500 text-black border-amber-500'
-                                                                  : `${chipBg} ${sidebarBorder} text-slate-300`
+                                                      className={`px-3 py-1 rounded-full border whitespace-nowrap flex-shrink-0 ${filter === 'due'
+                                                            ? 'bg-amber-500 text-black border-amber-500'
+                                                            : `${chipBg} ${sidebarBorder} text-slate-300`
                                                             }`}
                                                 >
                                                       Credit Due
                                                 </button>
                                                 <button
                                                       onClick={() => setFilter('cleared')}
-                                                      className={`px-3 py-1 rounded-full border ${filter === 'cleared'
-                                                                  ? 'bg-sky-500 text-black border-sky-500'
-                                                                  : `${chipBg} ${sidebarBorder} text-slate-300`
+                                                      className={`px-3 py-1 rounded-full border whitespace-nowrap flex-shrink-0 ${filter === 'cleared'
+                                                            ? 'bg-sky-500 text-black border-sky-500'
+                                                            : `${chipBg} ${sidebarBorder} text-slate-300`
                                                             }`}
                                                 >
                                                       Cleared
@@ -696,7 +699,7 @@ export default function OwnerDashboard() {
 
                                     {/* New customer form */}
                                     <div
-                                          className={`px-3 pb-3 pt-2 ${sidebarBg} border-b ${sidebarBorder}`}
+                                          className={`px-3 py-2 ${sidebarBg} border-b ${sidebarBorder} flex-shrink-0`}
                                     >
                                           <div className={`${headerBg} rounded-2xl p-3 space-y-2`}>
                                                 <input
@@ -725,9 +728,9 @@ export default function OwnerDashboard() {
 
                                     {/* Undo bar */}
                                     {lastDeleted && (
-                                          <div className="px-3 py-2 bg-amber-900 text-amber-100 text-[11px] flex items-center justify-between">
+                                          <div className="px-3 py-2 bg-amber-900 text-amber-100 text-[11px] flex items-center justify-between flex-shrink-0">
                                                 <span>
-                                                      Deleted {lastDeleted.customer.name}. Undo within 10 seconds.
+                                                      Deleted {lastDeleted.customer.name}. Undo in 10s.
                                                 </span>
                                                 <button
                                                       onClick={handleUndoDelete}
@@ -746,8 +749,8 @@ export default function OwnerDashboard() {
                                                       className={`w-full px-3 py-3 flex items-center gap-3 border-b ${sidebarBorder} ${selected?.phone === c.phone && isDark ? 'bg-slate-900' : ''
                                                             } ${selected?.phone === c.phone && !isDark
                                                                   ? 'bg-slate-100'
-                                                                  : ''
-                                                            }`}
+                                                                  : ''}
+                                                            active:bg-slate-800/50 transition-colors`}
                                                 >
                                                       <button
                                                             onClick={() => {
@@ -755,16 +758,16 @@ export default function OwnerDashboard() {
                                                                   clearTxnSelection();
                                                                   if (isMobileView) setShowListOnMobile(false);
                                                             }}
-                                                            className="flex-1 flex items-center gap-3 text-left"
+                                                            className="flex-1 flex items-center gap-3 text-left min-w-0"
                                                       >
-                                                            <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white">
+                                                            <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
                                                                   {c.name?.[0]?.toUpperCase() || 'C'}
                                                             </div>
 
-                                                            <div className="flex-1">
-                                                                  <div className="flex justify-between items-center">
-                                                                        <p className="text-sm font-semibold">{c.name}</p>
-                                                                        <span className="text-[10px] text-slate-500">
+                                                            <div className="flex-1 min-w-0">
+                                                                  <div className="flex justify-between items-center gap-1">
+                                                                        <p className="text-sm font-semibold truncate">{c.name}</p>
+                                                                        <span className="text-[10px] text-slate-500 whitespace-nowrap">
                                                                               {c.ledger && c.ledger.length
                                                                                     ? formatDateTime(
                                                                                           c.ledger[c.ledger.length - 1].createdAt ||
@@ -773,8 +776,8 @@ export default function OwnerDashboard() {
                                                                                     : ''}
                                                                         </span>
                                                                   </div>
-                                                                  <div className="flex justify-between items-center mt-1">
-                                                                        <p className="text-[11px] text-slate-400 truncate max-w-40">
+                                                                  <div className="flex justify-between items-center mt-1 gap-1">
+                                                                        <p className="text-[11px] text-slate-400 truncate">
                                                                               {c.ledger && c.ledger.length
                                                                                     ? c.ledger[c.ledger.length - 1].note ||
                                                                                     `${c.ledger[c.ledger.length - 1].type.toUpperCase()} ₹${c.ledger[c.ledger.length - 1].amount
@@ -782,9 +785,9 @@ export default function OwnerDashboard() {
                                                                                     : 'No transactions yet'}
                                                                         </p>
                                                                         <span
-                                                                              className={`ml-2 text-[11px] font-semibold ${(c.currentDue || 0) > 0
-                                                                                          ? 'text-amber-500'
-                                                                                          : 'text-emerald-500'
+                                                                              className={`text-[11px] font-semibold whitespace-nowrap ${(c.currentDue || 0) > 0
+                                                                                    ? 'text-amber-500'
+                                                                                    : 'text-emerald-500'
                                                                                     }`}
                                                                         >
                                                                               ₹{c.currentDue}
@@ -795,7 +798,7 @@ export default function OwnerDashboard() {
 
                                                       <button
                                                             onClick={() => handleDeleteCustomer(c)}
-                                                            className="text-[11px] text-red-400 hover:text-red-300 select-none"
+                                                            className="text-[11px] text-red-400 hover:text-red-300 select-none flex-shrink-0"
                                                             title="Delete customer"
                                                       >
                                                             🗑
@@ -811,9 +814,9 @@ export default function OwnerDashboard() {
                               </aside>
                         )}
 
-                        {/* RIGHT: CHAT WINDOW (WhatsApp conversation screen) */}
+                        {/* RIGHT: CHAT WINDOW */}
                         {showChatPane && (
-                              <main className={`flex-1 h-full flex flex-col ${chatBg}`}>
+                              <main className={`flex-1 h-full flex flex-col ${chatBg} overflow-hidden`}>
                                     {!selected ? (
                                           <div className="flex-1 flex items-center justify-center text-slate-500 text-sm px-4 text-center">
                                                 Select a customer to view Borrow &amp; Payment history.
@@ -822,49 +825,48 @@ export default function OwnerDashboard() {
                                           <>
                                                 {/* Top bar */}
                                                 <div
-                                                      className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b ${sidebarBorder}`}
+                                                      className={`flex items-center justify-between px-3 sm:px-4 py-3 ${headerBg} border-b ${sidebarBorder} flex-shrink-0 gap-2`}
                                                 >
-                                                      <div className="flex items-center gap-3">
-                                                            {/* Mobile back button like WhatsApp */}
+                                                      <div className="flex items-center gap-2 min-w-0 flex-1">
                                                             {isMobileView && (
                                                                   <button
                                                                         onClick={() => {
                                                                               setShowListOnMobile(true);
                                                                               clearTxnSelection();
                                                                         }}
-                                                                        className="mr-1 text-xl text-slate-200"
+                                                                        className="mr-1 text-lg text-slate-200 flex-shrink-0"
                                                                   >
                                                                         ←
                                                                   </button>
                                                             )}
-                                                            <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white">
+                                                            <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
                                                                   {selected.name?.[0]?.toUpperCase() || 'C'}
                                                             </div>
-                                                            <div>
-                                                                  <p className="text-sm font-semibold">{selected.name}</p>
-                                                                  <p className="text-[10px] text-slate-400">
+                                                            <div className="min-w-0 flex-1">
+                                                                  <p className="text-sm font-semibold truncate">{selected.name}</p>
+                                                                  <p className="text-[10px] text-slate-400 truncate">
                                                                         {selected.phone}
                                                                   </p>
                                                             </div>
                                                       </div>
-                                                      <div className="flex items-center gap-3 text-slate-300">
+                                                      <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
                                                             {selectedTxnIds.size > 0 && (
-                                                                  <span className="text-[11px]">
+                                                                  <span className="text-[11px] text-slate-300 hidden sm:inline">
                                                                         {selectedTxnIds.size} selected
                                                                   </span>
                                                             )}
                                                             <button
                                                                   onClick={sendDueReminder}
-                                                                  className="hidden sm:inline-flex text-[11px] bg-emerald-600 hover:bg-emerald-500 text-black rounded-full px-3 py-1"
+                                                                  className="hidden sm:inline-flex text-[11px] bg-emerald-600 hover:bg-emerald-500 text-black rounded-full px-3 py-1 whitespace-nowrap"
                                                             >
-                                                                  WhatsApp Reminder
+                                                                  WhatsApp
                                                             </button>
                                                             <button
                                                                   onClick={handleChatMenuClick}
                                                                   disabled={selectedTxnIds.size === 0}
-                                                                  className={`text-xl relative select-none ${selectedTxnIds.size === 0
-                                                                              ? 'text-slate-500 cursor-default'
-                                                                              : 'cursor-pointer'
+                                                                  className={`text-lg relative select-none flex-shrink-0 ${selectedTxnIds.size === 0
+                                                                        ? 'text-slate-500 cursor-default'
+                                                                        : 'cursor-pointer'
                                                                         }`}
                                                             >
                                                                   ⋮
@@ -892,7 +894,7 @@ export default function OwnerDashboard() {
                                                                                     className="w-full text-left px-3 py-2 hover:bg-slate-700"
                                                                                     onClick={clearTxnSelection}
                                                                               >
-                                                                                    Clear selection
+                                                                                    Clear
                                                                               </button>
                                                                         </div>
                                                                   )}
@@ -901,29 +903,29 @@ export default function OwnerDashboard() {
                                                 </div>
 
                                                 {/* Current due banner */}
-                                                <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-300 flex items-center justify-between">
+                                                <div className="px-3 sm:px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-300 flex items-center justify-between flex-shrink-0">
                                                       <span>Current Due: ₹{selected.currentDue}</span>
                                                       <button
                                                             onClick={sendDueReminder}
                                                             className="sm:hidden text-[11px] underline"
                                                       >
-                                                            WhatsApp Reminder
+                                                            WhatsApp
                                                       </button>
                                                 </div>
 
                                                 {/* Chat search bar */}
-                                                <div className="px-4 py-2 border-b border-slate-700 text-[11px] flex items-center gap-2">
-                                                      <span className="text-slate-400 select-none">🔍</span>
+                                                <div className="px-3 sm:px-4 py-2 border-b border-slate-700 text-[11px] flex items-center gap-2 flex-shrink-0">
+                                                      <span className="text-slate-400 select-none flex-shrink-0">🔍</span>
                                                       <input
                                                             value={chatSearch}
                                                             onChange={(e) => setChatSearch(e.target.value)}
-                                                            placeholder="Search in this khata by note, amount or date"
-                                                            className="flex-1 bg-transparent focus:outline-none text-xs"
+                                                            placeholder="Search in khata"
+                                                            className="flex-1 bg-transparent focus:outline-none text-xs min-w-0"
                                                       />
                                                       {chatSearch && (
                                                             <button
                                                                   onClick={() => setChatSearch('')}
-                                                                  className="text-slate-400 select-none"
+                                                                  className="text-slate-400 select-none flex-shrink-0"
                                                             >
                                                                   ✕
                                                             </button>
@@ -952,7 +954,7 @@ export default function OwnerDashboard() {
                                                                   const bubbleClass = isCredit
                                                                         ? bubbleCredit
                                                                         : bubblePayment;
-                                                                  const justify = isCredit ? 'flex-end' : 'flex-start';
+                                                                  const justify = isCredit ? 'justify-end' : 'justify-start';
 
                                                                   const when = formatDateTime(t.createdAt || t.date);
                                                                   const title =
@@ -967,35 +969,34 @@ export default function OwnerDashboard() {
                                                                   return (
                                                                         <div
                                                                               key={idx}
-                                                                              className="w-full flex"
-                                                                              style={{ justifyContent: justify }}
+                                                                              className={`w-full flex ${justify}`}
                                                                         >
                                                                               <button
                                                                                     type="button"
                                                                                     onClick={() => toggleTxnSelect(idx)}
-                                                                                    className={`max-w-[80%] rounded-2xl px-3 py-2 text-xs shadow-sm text-left ${bubbleClass} border ${isSelected
-                                                                                                ? 'border-amber-400'
-                                                                                                : 'border-transparent'
-                                                                                          }`}
+                                                                                    className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 py-2 text-xs shadow-sm text-left ${bubbleClass} border ${isSelected
+                                                                                          ? 'border-amber-400'
+                                                                                          : 'border-transparent'
+                                                                                          } active:opacity-80 transition-opacity`}
                                                                               >
                                                                                     <div className="flex justify-between items-center gap-2">
                                                                                           <span className="font-semibold">
                                                                                                 {title} · ₹{t.amount}
                                                                                           </span>
-                                                                                          <span className="text-[10px] opacity-80">
+                                                                                          <span className="text-[10px] opacity-80 whitespace-nowrap">
                                                                                                 {when}
                                                                                           </span>
                                                                                     </div>
 
                                                                                     {t.note && (
-                                                                                          <div className="mt-1 text-[11px] whitespace-pre-line">
+                                                                                          <div className="mt-1 text-[11px] whitespace-pre-line break-words">
                                                                                                 {t.note}
                                                                                           </div>
                                                                                     )}
 
                                                                                     {typeof t.balanceAfter === 'number' && (
                                                                                           <div className="mt-1 text-[10px] opacity-80 text-right">
-                                                                                                Due after entry: ₹{t.balanceAfter}
+                                                                                                Due: ₹{t.balanceAfter}
                                                                                           </div>
                                                                                     )}
                                                                               </button>
@@ -1004,9 +1005,9 @@ export default function OwnerDashboard() {
                                                             })}
 
                                                       {filteredLedger.length === 0 && (
-                                                            <div className="flex flex-col items-center justify-center h-full text-xs text-slate-500">
+                                                            <div className="flex flex-col items-center justify-center py-8 text-xs text-slate-500 text-center px-4">
                                                                   <p>No transactions match this search.</p>
-                                                                  <p>Clear search or add a new Udhaar/Payment below.</p>
+                                                                  <p className="text-[10px] mt-1">Add entry below.</p>
                                                             </div>
                                                       )}
 
@@ -1015,10 +1016,10 @@ export default function OwnerDashboard() {
 
                                                 {/* Bottom input bar */}
                                                 <div
-                                                      className={`px-2 sm:px-4 py-2 ${headerBg} border-t ${sidebarBorder} flex items-center gap-2`}
+                                                      className={`px-2 sm:px-4 py-2 ${headerBg} border-t ${sidebarBorder} flex flex-col sm:flex-row items-center gap-2 flex-shrink-0`}
                                                 >
                                                       <select
-                                                            className={`${inputBg} text-[11px] rounded-full px-2 py-2 text-slate-100 focus:outline-none`}
+                                                            className={`${inputBg} text-[11px] rounded-full px-2 py-2 text-slate-100 focus:outline-none w-full sm:w-auto`}
                                                             value={txnType}
                                                             onChange={(e) => setTxnType(e.target.value)}
                                                       >
@@ -1029,7 +1030,7 @@ export default function OwnerDashboard() {
                                                       <input
                                                             type="number"
                                                             placeholder="₹ Amount"
-                                                            className={`${inputBg} rounded-full px-3 py-2 w-24 text-xs focus:outline-none`}
+                                                            className={`${inputBg} rounded-full px-3 py-2 w-full sm:w-24 text-xs focus:outline-none`}
                                                             value={txnAmount}
                                                             onChange={(e) => setTxnAmount(e.target.value)}
                                                       />
@@ -1044,9 +1045,9 @@ export default function OwnerDashboard() {
                                                       <button
                                                             onClick={handleSaveTxn}
                                                             disabled={!selected || !txnAmount}
-                                                            className={`rounded-full px-4 py-2 text-xs font-semibold ${!selected || !txnAmount
-                                                                        ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                                                                        : 'bg-emerald-500 hover:bg-emerald-600 text-black'
+                                                            className={`rounded-full px-4 py-2 text-xs font-semibold whitespace-nowrap w-full sm:w-auto ${!selected || !txnAmount
+                                                                  ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                                                                  : 'bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-black'
                                                                   }`}
                                                       >
                                                             {editingIndex !== null ? 'Update' : 'Save'}
