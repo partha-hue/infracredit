@@ -4,6 +4,9 @@ import Customer from '@/models/Customer';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 
+// Backend version tag to help verify deployment logs
+const BACKEND_FIX_VERSION = 'fix/phone-normalization-2026-01-04-v2';
+
 /* ===== helpers ===== */
 function getToken(req) {
       const auth = req.headers.get('authorization');
@@ -88,7 +91,18 @@ export async function GET(req, { params }) {
                   );
             }
 
-            const normalizedPhone = normalizeIndianMobile(params.phone);
+            console.log('Backend version:', BACKEND_FIX_VERSION);
+            let normalizedPhone = normalizeIndianMobile(params.phone);
+
+            // Server-side tolerant fallback: if normalize fails but raw param contains exactly 10 digits, accept it
+            if (!normalizedPhone) {
+                  const rawDigits = String(params.phone || '').replace(/\D/g, '');
+                  if (rawDigits.length === 10) {
+                        console.warn('Fallback acceptance of raw 10-digit phone in GET', { rawParam: params.phone, digits: rawDigits });
+                        normalizedPhone = rawDigits;
+                  }
+            }
+
             if (!normalizedPhone) {
                   console.error('GET /api/customers/[phone]: invalid phone param', { rawParam: params.phone });
                   return NextResponse.json(
@@ -157,7 +171,17 @@ export async function POST(req, { params }) {
             }
 
             // 🔥 FIXED: Same normalization as GET
-            const normalizedPhone = normalizeIndianMobile(params.phone);
+            let normalizedPhone = normalizeIndianMobile(params.phone);
+
+            // Server-side tolerant fallback: if normalize fails but raw param contains exactly 10 digits, accept it
+            if (!normalizedPhone) {
+                  const rawDigits = String(params.phone || '').replace(/\D/g, '');
+                  if (rawDigits.length === 10) {
+                        console.warn('Fallback acceptance of raw 10-digit phone in POST', { rawParam: params.phone, digits: rawDigits });
+                        normalizedPhone = rawDigits;
+                  }
+            }
+
             if (!normalizedPhone) {
                   console.error('POST /api/customers/[phone]: invalid phone param', { rawParam: params.phone });
                   return NextResponse.json(
@@ -270,7 +294,17 @@ export async function DELETE(req, { params }) {
                   );
             }
 
-            const normalizedPhone = normalizeIndianMobile(params.phone);
+            let normalizedPhone = normalizeIndianMobile(params.phone);
+
+            // Server-side tolerant fallback: if normalize fails but raw param contains exactly 10 digits, accept it
+            if (!normalizedPhone) {
+                  const rawDigits = String(params.phone || '').replace(/\D/g, '');
+                  if (rawDigits.length === 10) {
+                        console.warn('Fallback acceptance of raw 10-digit phone in DELETE', { rawParam: params.phone, digits: rawDigits });
+                        normalizedPhone = rawDigits;
+                  }
+            }
+
             if (!normalizedPhone) {
                   console.error('DELETE /api/customers/[phone]: invalid phone param', { rawParam: params.phone });
                   return NextResponse.json(
