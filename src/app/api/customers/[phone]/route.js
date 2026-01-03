@@ -53,6 +53,21 @@ function normalizeIndianMobile(rawPhone) {
       return digits;
 }
 
+/***** helper: robust phone extraction from request (params or path) *****/
+function extractPhoneFromReq(req, params) {
+      // prefer params.phone if present
+      if (params && params.phone) return params.phone;
+
+      // otherwise, try to parse last path segment from request URL
+      try {
+            const url = new URL(req.url, 'http://localhost');
+            const parts = url.pathname.split('/').filter(Boolean);
+            return parts.length ? parts[parts.length - 1] : null;
+      } catch (e) {
+            return null;
+      }
+}
+
 /* ===== GET /api/customers/[phone] ===== */
 export async function GET(req, { params }) {
       try {
@@ -92,19 +107,30 @@ export async function GET(req, { params }) {
             }
 
             console.log('Backend version:', BACKEND_FIX_VERSION);
-            let normalizedPhone = normalizeIndianMobile(params.phone);
+
+            // get phone from params or fallback to parsing URL path
+            const rawParam = extractPhoneFromReq(req, params);
+            if (!rawParam) {
+                  console.error('GET /api/customers/[phone]: missing param and no phone in path', { rawParam });
+                  return NextResponse.json(
+                        { error: 'Phone parameter is missing' },
+                        { status: 400 },
+                  );
+            }
+
+            let normalizedPhone = normalizeIndianMobile(rawParam);
 
             // Server-side tolerant fallback: if normalize fails but raw param contains exactly 10 digits, accept it
             if (!normalizedPhone) {
-                  const rawDigits = String(params.phone || '').replace(/\D/g, '');
+                  const rawDigits = String(rawParam || '').replace(/\D/g, '');
                   if (rawDigits.length === 10) {
-                        console.warn('Fallback acceptance of raw 10-digit phone in GET', { rawParam: params.phone, digits: rawDigits });
+                        console.warn('Fallback acceptance of raw 10-digit phone in GET', { rawParam, digits: rawDigits });
                         normalizedPhone = rawDigits;
                   }
             }
 
             if (!normalizedPhone) {
-                  console.error('GET /api/customers/[phone]: invalid phone param', { rawParam: params.phone });
+                  console.error('GET /api/customers/[phone]: invalid phone param', { rawParam });
                   return NextResponse.json(
                         {
                               error:
@@ -171,19 +197,28 @@ export async function POST(req, { params }) {
             }
 
             // 🔥 FIXED: Same normalization as GET
-            let normalizedPhone = normalizeIndianMobile(params.phone);
+            const rawParamPost = extractPhoneFromReq(req, params);
+            if (!rawParamPost) {
+                  console.error('POST /api/customers/[phone]: missing param and no phone in path', { rawParam: rawParamPost });
+                  return NextResponse.json(
+                        { error: 'Phone parameter is missing' },
+                        { status: 400 },
+                  );
+            }
+
+            let normalizedPhone = normalizeIndianMobile(rawParamPost);
 
             // Server-side tolerant fallback: if normalize fails but raw param contains exactly 10 digits, accept it
             if (!normalizedPhone) {
-                  const rawDigits = String(params.phone || '').replace(/\D/g, '');
+                  const rawDigits = String(rawParamPost || '').replace(/\D/g, '');
                   if (rawDigits.length === 10) {
-                        console.warn('Fallback acceptance of raw 10-digit phone in POST', { rawParam: params.phone, digits: rawDigits });
+                        console.warn('Fallback acceptance of raw 10-digit phone in POST', { rawParam: rawParamPost, digits: rawDigits });
                         normalizedPhone = rawDigits;
                   }
             }
 
             if (!normalizedPhone) {
-                  console.error('POST /api/customers/[phone]: invalid phone param', { rawParam: params.phone });
+                  console.error('POST /api/customers/[phone]: invalid phone param', { rawParam: rawParamPost });
                   return NextResponse.json(
                         {
                               error:
@@ -294,19 +329,28 @@ export async function DELETE(req, { params }) {
                   );
             }
 
-            let normalizedPhone = normalizeIndianMobile(params.phone);
+            const rawParamDelete = extractPhoneFromReq(req, params);
+            if (!rawParamDelete) {
+                  console.error('DELETE /api/customers/[phone]: missing param and no phone in path', { rawParam: rawParamDelete });
+                  return NextResponse.json(
+                        { error: 'Phone parameter is missing' },
+                        { status: 400 },
+                  );
+            }
+
+            let normalizedPhone = normalizeIndianMobile(rawParamDelete);
 
             // Server-side tolerant fallback: if normalize fails but raw param contains exactly 10 digits, accept it
             if (!normalizedPhone) {
-                  const rawDigits = String(params.phone || '').replace(/\D/g, '');
+                  const rawDigits = String(rawParamDelete || '').replace(/\D/g, '');
                   if (rawDigits.length === 10) {
-                        console.warn('Fallback acceptance of raw 10-digit phone in DELETE', { rawParam: params.phone, digits: rawDigits });
+                        console.warn('Fallback acceptance of raw 10-digit phone in DELETE', { rawParam: rawParamDelete, digits: rawDigits });
                         normalizedPhone = rawDigits;
                   }
             }
 
             if (!normalizedPhone) {
-                  console.error('DELETE /api/customers/[phone]: invalid phone param', { rawParam: params.phone });
+                  console.error('DELETE /api/customers/[phone]: invalid phone param', { rawParam: rawParamDelete });
                   return NextResponse.json(
                         {
                               error:
