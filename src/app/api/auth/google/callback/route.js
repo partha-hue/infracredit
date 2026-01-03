@@ -94,10 +94,18 @@ export async function GET(request) {
                   { expiresIn: '7d' },
             );
 
+            // Set token cookie so server-rendered pages can read it
             const redirectUrl = new URL('/auth/google-success', request.url);
-            redirectUrl.searchParams.set('token', token);
+            const res = NextResponse.redirect(redirectUrl);
+            res.cookies.set('token', token, {
+                  httpOnly: true,
+                  path: '/',
+                  sameSite: 'lax',
+                  secure: process.env.NODE_ENV === 'production',
+                  maxAge: 7 * 24 * 60 * 60,
+            });
 
-            return NextResponse.redirect(redirectUrl);
+            return res;
       } catch (err) {
             console.error('Google callback error:', err);
             return NextResponse.redirect(new URL('/?google=error', request.url));

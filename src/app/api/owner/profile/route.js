@@ -82,7 +82,16 @@ export async function PATCH(req) {
                   // reissue token with new claims (so client can refresh stored token if desired)
                   const newToken = signToken(updated);
 
-                  return NextResponse.json({ owner: updated, token: newToken }, { status: 200 });
+                  const res = NextResponse.json({ owner: updated, token: newToken }, { status: 200 });
+                  // update cookie as well
+                  res.cookies.set('token', newToken, {
+                        httpOnly: true,
+                        path: '/',
+                        sameSite: 'lax',
+                        secure: process.env.NODE_ENV === 'production',
+                        maxAge: 7 * 24 * 60 * 60,
+                  });
+                  return res;
             } catch (err) {
                   if (err.code === 11000) return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
                   throw err;

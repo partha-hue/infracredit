@@ -77,7 +77,7 @@ export async function POST(req) {
             );
 
             /* ----------------- SUCCESS ----------------- */
-            return NextResponse.json({
+            const res = NextResponse.json({
                   success: true,
                   token,
                   owner: {
@@ -87,6 +87,17 @@ export async function POST(req) {
                         email: owner.email,
                   },
             });
+
+            // set token cookie (HttpOnly) for server-rendered pages to use
+            res.cookies.set('token', token, {
+                  httpOnly: true,
+                  path: '/',
+                  sameSite: 'lax',
+                  secure: process.env.NODE_ENV === 'production',
+                  maxAge: 7 * 24 * 60 * 60, // 7 days
+            });
+
+            return res;
 
       } catch (err) {
             console.error('❌ LOGIN ERROR:', err);
