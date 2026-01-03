@@ -84,9 +84,9 @@ const API = {
             const token = getToken();
             if (!token) throw new Error('No token - please login');
             const normalizedPhone = normalizeIndianMobile(phone);
-            if (!normalizedPhone) throw new Error('Invalid phone number');
+            if (!normalizedPhone) throw new Error('Invalid phone number. Enter a 10-digit Indian mobile number (e.g., 9876543210).');
 
-            const res = await fetch(`/api/customers/${encodeURIComponent(phone)}`, {
+            const res = await fetch(`/api/customers/${encodeURIComponent(normalizedPhone)}`, {
                   method: 'POST',
                   headers: {
                         'Content-Type': 'application/json',
@@ -198,10 +198,19 @@ const ToastContainer = ({ toasts, removeToast, isDark }) => {
 };
 function normalizeIndianMobile(rawPhone) {
       if (!rawPhone) return null;
-      let digits = String(rawPhone).replace(/\D/g, '');
-      if (digits.length > 10 && digits.startsWith('91')) {
+
+      const original = String(rawPhone);
+      let digits = original.replace(/\D/g, '');
+
+      // Remove common country/trunk prefixes ONLY if doing so leaves >= 10 digits
+      if (digits.startsWith('0091') && digits.length - 4 >= 10) {
+            digits = digits.slice(4);
+      } else if (digits.startsWith('91') && digits.length - 2 >= 10) {
             digits = digits.slice(2);
+      } else if (digits.startsWith('0') && digits.length - 1 >= 10) {
+            digits = digits.slice(1);
       }
+
       if (!/^[6-9]\d{9}$/.test(digits)) return null;
       return digits;
 }
