@@ -275,6 +275,10 @@ export default function OwnerDashboard() {
       const [newPhone, setNewPhone] = useState('');
       const [editingCustomer, setEditingCustomer] = useState(null); // phone string when editing customer
 
+      // Which customer's action menu is visible (touch-friendly single icon)
+      const [actionMenuFor, setActionMenuFor] = useState(null); // phone string for which action menu is visible
+      const actionMenuRef = useRef(null);
+
       const [txnType, setTxnType] = useState('credit');
       const [txnAmount, setTxnAmount] = useState('');
       const [txnNote, setTxnNote] = useState('');
@@ -348,6 +352,21 @@ export default function OwnerDashboard() {
             window.addEventListener('resize', handleResize);
             return () => window.removeEventListener('resize', handleResize);
       }, [selected]);
+
+      useEffect(() => {
+            if (!actionMenuFor) return;
+            const handler = (e) => {
+                  try {
+                        if (actionMenuRef.current && !actionMenuRef.current.contains(e.target)) {
+                              setActionMenuFor(null);
+                        }
+                  } catch (err) {
+                        setActionMenuFor(null);
+                  }
+            };
+            document.addEventListener('pointerdown', handler);
+            return () => document.removeEventListener('pointerdown', handler);
+      }, [actionMenuFor]);
 
       const filteredCustomers = useMemo(() => {
             const term = search.trim().toLowerCase();
@@ -879,6 +898,7 @@ export default function OwnerDashboard() {
                                                             onClick={() => {
                                                                   setSelected(c);
                                                                   clearTxnSelection();
+                                                                  setActionMenuFor(null);
                                                                   if (isMobileView) setShowListOnMobile(false);
                                                             }}
                                                             className="flex-1 flex items-center gap-3 text-left min-w-0"
@@ -919,27 +939,56 @@ export default function OwnerDashboard() {
                                                             </div>
                                                       </button>
 
-                                                      <div className="flex items-center gap-2">
-                                                            <button
-                                                                  onClick={() => {
-                                                                        // start editing this customer
-                                                                        setEditingCustomer(c.phone);
-                                                                        setNewName(c.name || '');
-                                                                        setNewPhone(String(c.phone || ''));
-                                                                        if (isMobileView) setShowListOnMobile(false);
-                                                                  }}
-                                                                  className="text-[11px] text-sky-300 hover:text-sky-200 select-none flex-shrink-0"
-                                                                  title="Edit customer"
-                                                            >
-                                                                  ✎
-                                                            </button>
-                                                            <button
-                                                                  onClick={() => handleDeleteCustomer(c)}
-                                                                  className="text-[11px] text-red-400 hover:text-red-300 select-none flex-shrink-0"
-                                                                  title="Delete customer"
-                                                            >
-                                                                  🗑
-                                                            </button>
+                                                      <div className="flex items-center gap-2 relative">
+                                                            <div className="relative" ref={actionMenuFor === c.phone ? actionMenuRef : null}>
+                                                                  <button
+                                                                        onClick={(e) => {
+                                                                              e.stopPropagation();
+                                                                              setActionMenuFor((p) => (p === c.phone ? null : c.phone));
+                                                                        }}
+                                                                        className="text-[14px] p-2 rounded-md text-slate-300 hover:text-slate-200 select-none flex-shrink-0"
+                                                                        title="Tap to open options"
+                                                                  >
+                                                                        ⋮
+                                                                  </button>
+
+                                                                  {actionMenuFor === c.phone && (
+                                                                        <div className="absolute right-0 mt-2 w-36 bg-slate-800 text-[11px] rounded-md shadow-lg z-20">
+                                                                              <button
+                                                                                    className="w-full text-left px-3 py-2 hover:bg-slate-700"
+                                                                                    onClick={(ev) => {
+                                                                                          ev.stopPropagation();
+                                                                                          setEditingCustomer(c.phone);
+                                                                                          setNewName(c.name || '');
+                                                                                          setNewPhone(String(c.phone || ''));
+                                                                                          setActionMenuFor(null);
+                                                                                          if (isMobileView) setShowListOnMobile(false);
+                                                                                    }}
+                                                                              >
+                                                                                    Edit
+                                                                              </button>
+                                                                              <button
+                                                                                    className="w-full text-left px-3 py-2 hover:bg-slate-700 text-rose-400"
+                                                                                    onClick={(ev) => {
+                                                                                          ev.stopPropagation();
+                                                                                          setActionMenuFor(null);
+                                                                                          handleDeleteCustomer(c);
+                                                                                    }}
+                                                                              >
+                                                                                    Delete
+                                                                              </button>
+                                                                              <button
+                                                                                    className="w-full text-left px-3 py-2 hover:bg-slate-700"
+                                                                                    onClick={(ev) => {
+                                                                                          ev.stopPropagation();
+                                                                                          setActionMenuFor(null);
+                                                                                    }}
+                                                                              >
+                                                                                    Cancel
+                                                                              </button>
+                                                                        </div>
+                                                                  )}
+                                                            </div>
                                                       </div>
                                                 </div>
                                           ))}
