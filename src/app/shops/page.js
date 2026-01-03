@@ -82,41 +82,45 @@ const API = {
             return data;
       },
 
-      const res = await fetch('/api/customers', {
-            method: 'POST',
-            headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ name, phone }),
-      });
+      addCustomer: async (name, phone) => {
+            const token = getToken();
+            if (!token) throw new Error('No token - please login');
 
-      const data = await res.json().catch(() => ({}));
-      if(!res.ok) {
-            throw new Error(data.error || data.message || 'Failed to add customer');
+            const res = await fetch('/api/customers', {
+                  method: 'POST',
+                  headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({ name, phone }),
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                  throw new Error(data.error || data.message || 'Failed to add customer');
             }
-return data;
+            return data;
       },
 
-updateLedger: async (phone, ledger) => {
-      const token = getToken();
-      if (!token) throw new Error('No token - please login');
+      updateLedger: async (phone, ledger) => {
+            const token = getToken();
+            if (!token) throw new Error('No token - please login');
 
-      const res = await fetch(`/api/customers/${encodeURIComponent(phone)}`, {
-            method: 'PATCH',
-            headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ ledger }),
-      });
+            const res = await fetch(`/api/customers/${encodeURIComponent(phone)}`, {
+                  method: 'PATCH',
+                  headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({ ledger }),
+            });
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-            throw new Error(data.error || data.message || 'Failed to update ledger');
-      }
-      return data;
-},
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                  throw new Error(data.error || data.message || 'Failed to update ledger');
+            }
+            return data;
+      },
 
       updateCustomer: async (phone, { name, newPhone }) => {
             const token = getToken();
@@ -138,33 +142,33 @@ updateLedger: async (phone, ledger) => {
             return data;
       },
 
-            addTxn: async (phone, type, amount, note) => {
-                  const token = getToken();
-                  if (!token) throw new Error('No token - please login');
-                  const normalizedPhone = normalizeIndianMobile(phone);
-                  if (!normalizedPhone) throw new Error('Invalid phone number. Enter a 10-digit Indian mobile number (e.g., 9876543210).');
+      addTxn: async (phone, type, amount, note) => {
+            const token = getToken();
+            if (!token) throw new Error('No token - please login');
+            const normalizedPhone = normalizeIndianMobile(phone);
+            if (!normalizedPhone) throw new Error('Invalid phone number. Enter a 10-digit Indian mobile number (e.g., 9876543210).');
 
-                  const res = await fetch(`/api/customers/${encodeURIComponent(normalizedPhone)}`, {
-                        method: 'POST',
-                        headers: {
-                              'Content-Type': 'application/json',
-                              Authorization: `Bearer ${token}`,
-                        },
-                        body: JSON.stringify({
-                              type,
-                              amount,
-                              note,
-                              date: new Date().toISOString()  // 🔥 FIXED: Added date field
-                        }),
-                  });
+            const res = await fetch(`/api/customers/${encodeURIComponent(normalizedPhone)}`, {
+                  method: 'POST',
+                  headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({
+                        type,
+                        amount,
+                        note,
+                        date: new Date().toISOString()  // 🔥 FIXED: Added date field
+                  }),
+            });
 
-                  const data = await res.json().catch(() => ({}));
-                  if (!res.ok) {
-                        console.error('addTxn API error:', data);
-                        throw new Error(data.error || data.message || `HTTP ${res.status} - Transaction failed`);
-                  }
-                  return data;
-            },
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                  console.error('addTxn API error:', data);
+                  throw new Error(data.error || data.message || `HTTP ${res.status} - Transaction failed`);
+            }
+            return data;
+      },
 };
 
 /* ======================
