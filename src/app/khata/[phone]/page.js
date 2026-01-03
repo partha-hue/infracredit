@@ -23,7 +23,8 @@ export default function CustomerKhataPage({ params }) {
                   try {
                         const token = getToken();
 
-                        const res = await fetch(`/api/customers/${encodeURIComponent(phone)}`, {
+                        const normalizedPhone = normalizeIndianMobile(phone);
+                        const res = await fetch(`/api/customers/${encodeURIComponent(normalizedPhone ?? phone)}`, {
                               headers: token ? { Authorization: `Bearer ${token}` } : {},
                         });
 

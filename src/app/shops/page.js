@@ -211,7 +211,13 @@ function normalizeIndianMobile(rawPhone) {
             digits = digits.slice(1);
       }
 
-      if (!/^[6-9]\d{9}$/.test(digits)) return null;
+      if (!/^[6-9]\d{9}$/.test(digits)) {
+            if (digits.length === 10) {
+                  // tolerate older entries or unexpected starts
+                  return digits;
+            }
+            return null;
+      }
       return digits;
 }
 

@@ -36,6 +36,12 @@ function normalizeIndianMobile(rawPhone) {
 
       // Must be exactly 10 digits and start with 6-9 (Indian mobile rule)
       if (!/^[6-9]\d{9}$/.test(digits)) {
+            // Fallback: accept any 10-digit number (keeps compatibility with older data)
+            if (digits.length === 10) {
+                  console.warn('Phone does not start with 6-9 but is 10 digits — accepting as fallback', { raw: original, normalized: digits });
+                  return digits;
+            }
+
             console.error('Phone normalization failed', { raw: original, digits, reason: 'must be 10 digits and start with 6-9' });
             return null;
       }
