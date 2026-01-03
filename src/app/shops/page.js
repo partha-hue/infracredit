@@ -80,6 +80,26 @@ const API = {
             return data;
       },
 
+      updateLedger: async (phone, ledger) => {
+            const token = getToken();
+            if (!token) throw new Error('No token - please login');
+
+            const res = await fetch(`/api/customers/${encodeURIComponent(phone)}`, {
+                  method: 'PATCH',
+                  headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({ ledger }),
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                  throw new Error(data.error || data.message || 'Failed to update ledger');
+            }
+            return data;
+      },
+
       addTxn: async (phone, type, amount, note) => {
             const token = getToken();
             if (!token) throw new Error('No token - please login');
@@ -363,10 +383,13 @@ export default function OwnerDashboard() {
                         return;
                   }
 
+                  // Ensure signed amount (+ for credit, - for payment)
+                  const signedAmount = txnType === 'credit' ? Math.abs(Number(txnAmount)) : -Math.abs(Number(txnAmount));
+
                   const updatedEntry = {
                         ...old,
                         type: txnType,
-                        amount: Number(txnAmount),
+                        amount: signedAmount,
                         note: txnNote,
                   };
 
@@ -374,23 +397,26 @@ export default function OwnerDashboard() {
                         i === editingIndex ? updatedEntry : t,
                   );
 
-                  const updatedCustomer = {
-                        ...selected,
-                        ledger: newLedger,
-                  };
+                  try {
+                        const updatedCustomer = await API.updateLedger(selected.phone, newLedger);
 
-                  setSelected(updatedCustomer);
-                  setCustomers((prev) =>
-                        prev.map((c) => (c.phone === selected.phone ? updatedCustomer : c)),
-                  );
+                        setSelected(updatedCustomer);
+                        setCustomers((prev) =>
+                              prev.map((c) => (c.phone === selected.phone ? updatedCustomer : c)),
+                        );
 
-                  setEditingIndex(null);
-                  setSelectedTxnIds(new Set());
-                  setChatMenuOpen(false);
-                  setTxnAmount('');
-                  setTxnNote('');
+                        setEditingIndex(null);
+                        setSelectedTxnIds(new Set());
+                        setChatMenuOpen(false);
+                        setTxnAmount('');
+                        setTxnNote('');
 
-                  notify('Transaction updated', 'success');
+                        notify('Transaction updated', 'success');
+                  } catch (err) {
+                        console.error('Update ledger error:', err);
+                        notify('Failed to update transaction', 'error', err.message || 'Server error');
+                  }
+
                   return;
             }
 
@@ -587,13 +613,22 @@ export default function OwnerDashboard() {
                   const remaining = selected.ledger.filter(
                         (_, idx) => !idsArray.includes(idx),
                   );
-                  const updated = { ...selected, ledger: remaining };
-                  setSelected(updated);
-                  setCustomers((prev) =>
-                        prev.map((c) => (c.phone === selected.phone ? updated : c)),
-                  );
-                  clearTxnSelection();
-                  notify('Transactions deleted', 'success');
+
+                  try {
+                        const updatedCustomer = await API.updateLedger(selected.phone, remaining);
+
+                        setSelected(updatedCustomer);
+                        setCustomers((prev) =>
+                              prev.map((c) => (c.phone === selected.phone ? updatedCustomer : c)),
+                        );
+
+                        clearTxnSelection();
+                        notify('Transactions deleted', 'success');
+                  } catch (err) {
+                        console.error('Delete txn error:', err);
+                        notify('Failed to delete transactions', 'error', err.message || 'Server error');
+                  }
+
                   return;
             }
 
@@ -603,7 +638,8 @@ export default function OwnerDashboard() {
                         const indexInLedger = selected.ledger.findIndex((item) => item === t);
                         setEditingIndex(indexInLedger);
                         setTxnType(t.type || 'credit');
-                        setTxnAmount(String(t.amount || ''));
+                        // show positive amount in the input
+                        setTxnAmount(String(Math.abs(t.amount || '')));
                         setTxnNote(t.note || '');
                         setChatMenuOpen(false);
                         notify('Edit mode', 'info', 'Update the fields and press Save.');
