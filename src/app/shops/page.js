@@ -310,6 +310,12 @@ export default function OwnerDashboard() {
       const [lastDeletedTxns, setLastDeletedTxns] = useState(null); // { customerPhone, ledgerBefore, timeoutId, count }
       const [refreshing, setRefreshing] = useState(false);
 
+      // PDF modal state
+      const [pdfModalOpen, setPdfModalOpen] = useState(false);
+      const [pdfType, setPdfType] = useState('ledger'); // 'ledger' | 'invoice'
+      const [pdfLoading, setPdfLoading] = useState(false);
+      const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
+
       // clear any pending undo timeout on unmount
       useEffect(() => {
             return () => {
@@ -318,6 +324,15 @@ export default function OwnerDashboard() {
                   } catch { }
             };
       }, [lastDeletedTxns]);
+
+      // revoke blob URL when changed/unmounted
+      useEffect(() => {
+            return () => {
+                  try {
+                        if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+                  } catch { }
+            };
+      }, [pdfBlobUrl]);
 
       const messagesEndRef = useRef(null);
 
@@ -613,6 +628,65 @@ export default function OwnerDashboard() {
                   setRefreshing(false);
             }
       };
+
+      const handleGeneratePdf = async (phone, type = 'ledger') => {
+            if (!phone) return;
+            setPdfLoading(true);
+            try {
+                  let res;
+                  if (type === 'invoice') {
+                        // use existing GST invoice endpoint which returns PDF
+                        const token = getToken();
+                        res = await fetch('/api/invoice/gst', {
+                              method: 'POST',
+                              headers: {
+                                    'Content-Type': 'application/json',
+                                    Authorization: token ? `Bearer ${token}` : undefined,
+                              },
+                              body: JSON.stringify({ customer: selected.name || selected.phone, amount: Number(selected.currentDue || 0) }),
+                        });
+                  } else {
+                        const token = getToken();
+                        res = await fetch(`/api/customers/${encodeURIComponent(phone)}/pdf?type=ledger`, {
+                              headers: { Authorization: token ? `Bearer ${token}` : undefined },
+                        });
+                  }
+
+                  if (!res.ok) {
+                        const body = await res.json().catch(() => ({}));
+                        throw new Error(body.error || body.message || `HTTP ${res.status}`);
+                  }
+
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  setPdfBlobUrl(url);
+            } catch (err) {
+                  console.error('Generate PDF error:', err);
+                  notify('PDF generation failed', 'error', err.message || 'Server error');
+            } finally {
+                  setPdfLoading(false);
+            }
+      };
+
+      const handleDownloadPdf = () => {
+            if (!pdfBlobUrl) return;
+            const a = document.createElement('a');
+            a.href = pdfBlobUrl;
+            a.download = `${pdfType === 'invoice' ? 'invoice' : 'ledger'}-${selected?.phone || 'report'}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+      };
+
+      const handleSharePdfViaWhatsApp = () => {
+            if (!selected) return;
+            // We explain user to attach the downloaded PDF manually
+            const rawDigits = String(selected.phone || '').replace(/[^0-9]/g, '');
+            const waNumber = rawDigits.length === 10 ? `91${rawDigits}` : rawDigits;
+            const msg = encodeURIComponent(`Hi ${selected.name || ''}, I'm sending your InfraCredit khata. Please find the attached PDF (I will attach it here).\n\nCurrent Due: ₹${selected.currentDue || 0}`);
+            window.open(`https://wa.me/${waNumber}?text=${msg}`, '_blank');
+      };
+
 
       const sendDueReminder = () => {
             if (!selected) return;
@@ -1113,6 +1187,15 @@ export default function OwnerDashboard() {
                                                             >
                                                                   {refreshing ? 'Refreshing…' : 'Refresh'}
                                                             </button>
+
+                                                            <button
+                                                                  onClick={() => setPdfModalOpen(true)}
+                                                                  disabled={!selected}
+                                                                  className={`hidden sm:inline-flex text-[11px] bg-sky-600 hover:bg-sky-500 text-black rounded-full px-3 py-1 whitespace-nowrap ${!selected ? 'opacity-60 cursor-default' : ''}`}
+                                                            >
+                                                                  📄 PDF
+                                                            </button>
+
                                                             <button
                                                                   onClick={sendDueReminder}
                                                                   className="hidden sm:inline-flex text-[11px] bg-emerald-600 hover:bg-emerald-500 text-black rounded-full px-3 py-1 whitespace-nowrap"
@@ -1163,12 +1246,20 @@ export default function OwnerDashboard() {
                                                 {/* Current due banner */}
                                                 <div className="px-3 sm:px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-300 flex items-center justify-between flex-shrink-0">
                                                       <span>Current Due: ₹{selected.currentDue}</span>
-                                                      <button
-                                                            onClick={sendDueReminder}
-                                                            className="sm:hidden text-[11px] underline"
-                                                      >
-                                                            WhatsApp
-                                                      </button>
+                                                      <div className="flex gap-2 items-center">
+                                                            <button
+                                                                  onClick={() => setPdfModalOpen(true)}
+                                                                  className="sm:hidden text-[11px] underline"
+                                                            >
+                                                                  PDF
+                                                            </button>
+                                                            <button
+                                                                  onClick={sendDueReminder}
+                                                                  className="sm:hidden text-[11px] underline"
+                                                            >
+                                                                  WhatsApp
+                                                            </button>
+                                                      </div>
                                                 </div>
 
                                                 {/* Undo bar for deleted transactions */}
@@ -1342,6 +1433,75 @@ export default function OwnerDashboard() {
                               </main>
                         )}
                   </div>
+
+                  {/* PDF Modal */}
+                  {pdfModalOpen && (
+                        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
+                              <div className="bg-white dark:bg-slate-900 rounded-xl p-4 w-[92%] max-w-md">
+                                    <h3 className="text-sm font-semibold mb-2">Generate PDF</h3>
+                                    <div className="mb-3 text-xs text-slate-500">Select customer and document type</div>
+
+                                    <div className="mb-3">
+                                          <label className="text-[11px] text-slate-400">Customer</label>
+                                          <select
+                                                className="w-full rounded-md p-2 mt-1 text-sm bg-slate-800 text-white"
+                                                value={selected?.phone || ''}
+                                                onChange={(e) => {
+                                                      const phone = e.target.value;
+                                                      const chosen = customers.find((c) => c.phone === phone);
+                                                      if (chosen) setSelected(chosen);
+                                                }}
+                                          >
+                                                {customers.map((c) => (
+                                                      <option key={c.phone} value={c.phone}>{`${c.name} — ${c.phone}`}</option>
+                                                ))}
+                                          </select>
+                                    </div>
+
+                                    <div className="mb-3">
+                                          <label className="text-[11px] text-slate-400">Type</label>
+                                          <div className="flex gap-3 mt-1">
+                                                <label className="text-sm">
+                                                      <input type="radio" name="pdfType" checked={pdfType === 'ledger'} onChange={() => setPdfType('ledger')} /> Ledger
+                                                </label>
+                                                <label className="text-sm">
+                                                      <input type="radio" name="pdfType" checked={pdfType === 'invoice'} onChange={() => setPdfType('invoice')} /> GST Invoice
+                                                </label>
+                                          </div>
+                                    </div>
+
+                                    <div className="flex gap-2 justify-end">
+                                          {!pdfBlobUrl && (
+                                                <button
+                                                      onClick={() => handleGeneratePdf(selected?.phone, pdfType)}
+                                                      disabled={pdfLoading || !selected}
+                                                      className={`px-3 py-2 rounded-full text-sm ${pdfLoading ? 'bg-slate-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
+                                                >
+                                                      {pdfLoading ? 'Generating…' : 'Generate PDF'}
+                                                </button>
+                                          )}
+
+                                          {pdfBlobUrl && (
+                                                <>
+                                                      <button onClick={handleDownloadPdf} className="px-3 py-2 rounded-full bg-sky-600 text-white text-sm">Download</button>
+                                                      <button onClick={() => handleSharePdfViaWhatsApp()} className="px-3 py-2 rounded-full bg-emerald-500 text-black text-sm">Share via WhatsApp</button>
+                                                </>
+                                          )}
+
+                                          <button
+                                                onClick={() => {
+                                                      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+                                                      setPdfBlobUrl(null);
+                                                      setPdfModalOpen(false);
+                                                }}
+                                                className="px-3 py-2 rounded-full bg-slate-600 text-white text-sm"
+                                          >
+                                                Close
+                                          </button>
+                                    </div>
+                              </div>
+                        </div>
+                  )}
 
                   <ToastContainer
                         toasts={toasts}
