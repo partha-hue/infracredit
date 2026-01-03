@@ -22,22 +22,26 @@ function toObjectId(id) {
 function normalizeIndianMobile(rawPhone) {
       if (!rawPhone) return null;
 
-      let digits = String(rawPhone).replace(/\D/g, '');
-      console.log(`🔍 Normalizing phone: "${rawPhone}" → "${digits}"`);
+      const original = String(rawPhone);
+      let digits = original.replace(/\D/g, '');
 
-      // Strip +91 if present
-      if (digits.length > 10 && digits.startsWith('91')) {
+      // Remove common country/trunk prefixes ONLY if doing so leaves >= 10 digits
+      if (digits.startsWith('0091') && digits.length - 4 >= 10) {
+            digits = digits.slice(4);
+      } else if (digits.startsWith('91') && digits.length - 2 >= 10) {
             digits = digits.slice(2);
+      } else if (digits.startsWith('0') && digits.length - 1 >= 10) {
+            digits = digits.slice(1);
       }
 
-      // 🔥 EMERGENCY FIX: Accept ANY 10-digit number
-      if (digits.length === 10) {
-            console.log(`✅ Phone OK: "${digits}"`);
-            return digits;
+      // Must be exactly 10 digits and start with 6-9 (Indian mobile rule)
+      if (!/^[6-9]\d{9}$/.test(digits)) {
+            console.error('Phone normalization failed', { raw: original, digits, reason: 'must be 10 digits and start with 6-9' });
+            return null;
       }
 
-      console.error(`❌ Phone INVALID: "${digits}" (must be 10 digits)`);
-      return null;
+      console.log('Normalized phone', { raw: original, normalized: digits });
+      return digits;
 }
 
 /* ===== GET /api/customers/[phone] ===== */
@@ -80,8 +84,12 @@ export async function GET(req, { params }) {
 
             const normalizedPhone = normalizeIndianMobile(params.phone);
             if (!normalizedPhone) {
+                  console.error('GET /api/customers/[phone]: invalid phone param', { rawParam: params.phone });
                   return NextResponse.json(
-                        { error: 'Invalid phone number format. Must be 10 digits.' },
+                        {
+                              error:
+                                    'Invalid phone number format. Enter a valid 10-digit Indian mobile number (e.g., 9876543210).',
+                        },
                         { status: 400 },
                   );
             }
@@ -94,7 +102,7 @@ export async function GET(req, { params }) {
                   );
             }
 
-            return NextResponse.json(customer);
+            return NextResponse.json(customer, { status: 200 });
       } catch (err) {
             console.error('GET /api/customers/[phone] error:', err);
             return NextResponse.json(
@@ -145,8 +153,12 @@ export async function POST(req, { params }) {
             // 🔥 FIXED: Same normalization as GET
             const normalizedPhone = normalizeIndianMobile(params.phone);
             if (!normalizedPhone) {
+                  console.error('POST /api/customers/[phone]: invalid phone param', { rawParam: params.phone });
                   return NextResponse.json(
-                        { error: 'Invalid phone number format. Must be 10 digits.' },
+                        {
+                              error:
+                                    'Invalid phone number format. Enter a valid 10-digit Indian mobile number (e.g., 9876543210).',
+                        },
                         { status: 400 },
                   );
             }
@@ -204,7 +216,7 @@ export async function POST(req, { params }) {
             await customer.save();
 
             console.log(`Transaction saved for ${normalizedPhone}: ${type} ₹${numericAmount}`);
-            return NextResponse.json(customer);
+            return NextResponse.json(customer, { status: 200 });
       } catch (err) {
             console.error('POST /api/customers/[phone] error:', err);
             return NextResponse.json(
@@ -219,6 +231,13 @@ export async function DELETE(req, { params }) {
       try {
             await dbConnect();
 
+            if (!process.env.JWT_SECRET) {
+                  return NextResponse.json(
+                        { error: 'Server misconfiguration' },
+                        { status: 500 },
+                  );
+            }
+
             const token = getToken(req);
             if (!token) {
                   return NextResponse.json(
@@ -227,7 +246,16 @@ export async function DELETE(req, { params }) {
                   );
             }
 
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            let decoded;
+            try {
+                  decoded = jwt.verify(token, process.env.JWT_SECRET);
+            } catch {
+                  return NextResponse.json(
+                        { error: 'Invalid or expired token' },
+                        { status: 401 },
+                  );
+            }
+
             const ownerId = toObjectId(decoded.id);
             if (!ownerId) {
                   return NextResponse.json(
@@ -238,8 +266,12 @@ export async function DELETE(req, { params }) {
 
             const normalizedPhone = normalizeIndianMobile(params.phone);
             if (!normalizedPhone) {
+                  console.error('DELETE /api/customers/[phone]: invalid phone param', { rawParam: params.phone });
                   return NextResponse.json(
-                        { error: 'Invalid phone number' },
+                        {
+                              error:
+                                    'Invalid phone number format. Enter a valid 10-digit Indian mobile number (e.g., 9876543210).',
+                        },
                         { status: 400 },
                   );
             }
@@ -257,7 +289,7 @@ export async function DELETE(req, { params }) {
             }
 
             console.log(`Customer deleted: ${normalizedPhone}`);
-            return NextResponse.json({ message: 'Customer deleted' });
+            return NextResponse.json({ message: 'Customer deleted' }, { status: 200 });
       } catch (err) {
             console.error('DELETE /api/customers/[phone] error:', err);
             return NextResponse.json(

@@ -20,10 +20,28 @@ function toObjectId(id) {
       }
 }
 
-// Accept only 10-digit Indian mobile numbers (no +91)
-function normalizeIndianMobile(phone) {
-      const digits = String(phone || '').replace(/\D/g, '');
-      if (!/^[6-9]\d{9}$/.test(digits)) return null;
+// Normalize Indian mobile numbers: strip country/trunk prefixes (only when doing so leaves 10 digits) and validate 10 digits starting with 6-9
+function normalizeIndianMobile(rawPhone) {
+      if (!rawPhone) return null;
+
+      const original = String(rawPhone);
+      let digits = original.replace(/\D/g, '');
+
+      // Remove common country/trunk prefixes ONLY if doing so leaves >= 10 digits
+      if (digits.startsWith('0091') && digits.length - 4 >= 10) {
+            digits = digits.slice(4);
+      } else if (digits.startsWith('91') && digits.length - 2 >= 10) {
+            digits = digits.slice(2);
+      } else if (digits.startsWith('0') && digits.length - 1 >= 10) {
+            digits = digits.slice(1);
+      }
+
+      // Must be exactly 10 digits and start with 6-9 (Indian mobile rule)
+      if (!/^[6-9]\d{9}$/.test(digits)) {
+            console.error('Phone normalization failed', { raw: original, digits, reason: 'must be 10 digits and start with 6-9' });
+            return null;
+      }
+
       return digits;
 }
 
@@ -132,10 +150,11 @@ export async function POST(req) {
 
             const normalizedPhone = normalizeIndianMobile(phone);
             if (!normalizedPhone) {
+                  console.error('POST /api/customers: invalid phone', { rawPhone: phone });
                   return NextResponse.json(
                         {
                               error:
-                                    'Invalid phone number. Enter a valid 10-digit Indian mobile number.',
+                                    'Invalid phone number. Enter a valid 10-digit Indian mobile number (e.g., 9876543210).',
                         },
                         { status: 400 },
                   );
