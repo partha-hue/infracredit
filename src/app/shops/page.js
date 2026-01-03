@@ -172,6 +172,31 @@ const API = {
 };
 
 /* ======================
+   ICONS (2D SVG)
+====================== */
+const SunIcon = ({ className = 'w-5 h-5' }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="4" fill="currentColor" />
+            <g stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+                  <path d="M12 2v2" />
+                  <path d="M12 20v2" />
+                  <path d="M4.93 4.93l1.41 1.41" />
+                  <path d="M17.66 17.66l1.41 1.41" />
+                  <path d="M2 12h2" />
+                  <path d="M20 12h2" />
+                  <path d="M4.93 19.07l1.41-1.41" />
+                  <path d="M17.66 6.34l1.41-1.41" />
+            </g>
+      </svg>
+);
+
+const MoonIcon = ({ className = 'w-5 h-5' }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" fill="currentColor" />
+      </svg>
+);
+
+/* ======================
    TOAST SYSTEM (IN-APP)
 ====================== */
 
@@ -351,6 +376,35 @@ export default function OwnerDashboard() {
       const [ownerProfile, setOwnerProfile] = useState(null);
       const [ownerModalOpen, setOwnerModalOpen] = useState(false);
       const [ownerEdit, setOwnerEdit] = useState({ ownerName: '', shopName: '', email: '', phone: '', avatarUrl: '' });
+
+      const handleOwnerAvatarChange = async (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                  notify('Please select an image file', 'error');
+                  return;
+            }
+            if (file.size > 1_200_000) {
+                  notify('Image too large (max 1.2MB)', 'error');
+                  return;
+            }
+
+            try {
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  const res = await fetch('/api/owner/avatar', { method: 'POST', body: fd, headers: { Authorization: `Bearer ${getToken()}` } });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) throw new Error(data.error || data.message || 'Upload failed');
+
+                  if (data.token) localStorage.setItem('token', data.token);
+                  setOwnerProfile(data.owner);
+                  setOwnerEdit((p) => ({ ...p, avatarUrl: data.owner.avatarUrl || '' }));
+                  notify('Avatar uploaded', 'success');
+            } catch (err) {
+                  console.error('Owner avatar upload error:', err);
+                  notify('Avatar upload failed', 'error', err.message || 'Server error');
+            }
+      };
 
       const [isMobileView, setIsMobileView] = useState(true);
       const [showListOnMobile, setShowListOnMobile] = useState(true);
@@ -936,16 +990,8 @@ export default function OwnerDashboard() {
                                                 <p className="text-[10px] text-slate-400">Digital Khata</p>
                                           </div>
 
-                                          <button
-                                                onClick={() => setTheme(isDark ? 'light' : 'dark')}
-                                                className="text-xl rounded-full px-2 py-1 hover:bg-slate-700/40 transition-colors select-none"
-                                                title="Toggle theme"
-                                          >
-                                                {isDark ? '🌙' : '☀️'}
-                                          </button>
-
                                           {/* Owner avatar */}
-                                          <div className="relative ml-2">
+                                          <div className="relative ml-2 flex items-center">
                                                 <button
                                                       onClick={() => setOwnerModalOpen(true)}
                                                       className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white select-none"
@@ -956,6 +1002,15 @@ export default function OwnerDashboard() {
                                                       ) : (
                                                             (ownerProfile?.ownerName || 'O')[0]?.toUpperCase()
                                                       )}
+                                                </button>
+
+                                                <button
+                                                      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+                                                      className="ml-2 text-slate-200 hover:bg-slate-700/40 rounded-full p-2 transition-colors select-none"
+                                                      title="Toggle theme"
+                                                      aria-label="Toggle theme"
+                                                >
+                                                      {isDark ? <MoonIcon className="w-5 h-5 text-slate-200" /> : <SunIcon className="w-5 h-5 text-yellow-400" />}
                                                 </button>
                                           </div>
                                     </div>
@@ -1572,8 +1627,21 @@ export default function OwnerDashboard() {
                                     </div>
 
                                     <div className="mb-3">
-                                          <label className="text-[11px] text-slate-400">Avatar URL</label>
-                                          <input className="w-full rounded-md p-2 mt-1 text-sm bg-slate-800 text-white" value={ownerEdit.avatarUrl} onChange={(e) => setOwnerEdit((p) => ({ ...p, avatarUrl: e.target.value }))} />
+                                          <label className="text-[11px] text-slate-400">Avatar</label>
+                                          <div className="flex items-center gap-2">
+                                                <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-800 flex-shrink-0">
+                                                      {ownerEdit.avatarUrl ? (
+                                                            <img src={ownerEdit.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                                                      ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">No image</div>
+                                                      )}
+                                                </div>
+
+                                                <div className="flex-1">
+                                                      <input type="file" accept="image/*" onChange={handleOwnerAvatarChange} className="text-xs mb-2" />
+                                                      <input className="w-full rounded-md p-2 mt-1 text-sm bg-slate-800 text-white" value={ownerEdit.avatarUrl} onChange={(e) => setOwnerEdit((p) => ({ ...p, avatarUrl: e.target.value }))} placeholder="or paste image URL" />
+                                                </div>
+                                          </div>
                                     </div>
 
                                     <div className="flex gap-2 justify-end">
