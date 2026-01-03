@@ -60,6 +60,17 @@ const API = {
             return data;
       },
 
+      getCustomer: async (phone) => {
+            const token = getToken();
+            if (!token) throw new Error('No token - please login');
+            const res = await fetch(`/api/customers/${encodeURIComponent(phone)}`, {
+                  headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || data.message || `Failed to load customer ${phone}`);
+            return data;
+      },
+
       addCustomer: async (name, phone) => {
             const token = getToken();
             if (!token) throw new Error('No token - please login');
@@ -294,6 +305,19 @@ export default function OwnerDashboard() {
       const [selectedTxnIds, setSelectedTxnIds] = useState(new Set());
       const [chatMenuOpen, setChatMenuOpen] = useState(false);
       const [editingIndex, setEditingIndex] = useState(null);
+
+      // Transaction undo state: stores previous ledger snapshot so we can recover deleted txns
+      const [lastDeletedTxns, setLastDeletedTxns] = useState(null); // { customerPhone, ledgerBefore, timeoutId, count }
+      const [refreshing, setRefreshing] = useState(false);
+
+      // clear any pending undo timeout on unmount
+      useEffect(() => {
+            return () => {
+                  try {
+                        if (lastDeletedTxns?.timeoutId) clearTimeout(lastDeletedTxns.timeoutId);
+                  } catch { }
+            };
+      }, [lastDeletedTxns]);
 
       const messagesEndRef = useRef(null);
 
@@ -556,6 +580,40 @@ export default function OwnerDashboard() {
             notify('Delete undone', 'success');
       };
 
+      // Undo deleted transactions (restore previous ledger snapshot)
+      const handleUndoTxnDelete = async () => {
+            if (!lastDeletedTxns) return;
+            const { customerPhone, ledgerBefore, timeoutId } = lastDeletedTxns;
+            clearTimeout(timeoutId);
+            setLastDeletedTxns(null);
+
+            try {
+                  const restored = await API.updateLedger(customerPhone, ledgerBefore);
+                  setSelected((prev) => (prev?.phone === restored.phone ? restored : prev));
+                  setCustomers((prev) => prev.map((c) => (c.phone === restored.phone ? restored : c)));
+                  notify('Transactions restored', 'success');
+            } catch (err) {
+                  console.error('Undo txn restore error:', err);
+                  notify('Failed to restore transactions', 'error', err.message || 'Server error');
+            }
+      };
+
+      const handleRefresh = async () => {
+            if (!selected) return;
+            setRefreshing(true);
+            try {
+                  const fresh = await API.getCustomer(selected.phone);
+                  setSelected(fresh);
+                  setCustomers((prev) => prev.map((c) => (c.phone === fresh.phone ? fresh : c)));
+                  notify('Chat refreshed', 'success');
+            } catch (err) {
+                  console.error('Refresh error:', err);
+                  notify('Refresh failed', 'error', err.message || 'Server error');
+            } finally {
+                  setRefreshing(false);
+            }
+      };
+
       const sendDueReminder = () => {
             if (!selected) return;
 
@@ -675,6 +733,7 @@ export default function OwnerDashboard() {
             }
 
             if (action === 'delete') {
+                  const ledgerBefore = selected.ledger.slice();
                   const remaining = selected.ledger.filter(
                         (_, idx) => !idsArray.includes(idx),
                   );
@@ -687,8 +746,13 @@ export default function OwnerDashboard() {
                               prev.map((c) => (c.phone === selected.phone ? updatedCustomer : c)),
                         );
 
+                        // handle undo: store previous ledger and set a 10s undo window
+                        if (lastDeletedTxns?.timeoutId) clearTimeout(lastDeletedTxns.timeoutId);
+                        const timeoutId = setTimeout(() => setLastDeletedTxns(null), 10000);
+                        setLastDeletedTxns({ customerPhone: selected.phone, ledgerBefore, timeoutId, count: idsArray.length });
+
                         clearTxnSelection();
-                        notify('Transactions deleted', 'success');
+                        notify('Transactions deleted', 'info', 'Undo within 10 seconds.');
                   } catch (err) {
                         console.error('Delete txn error:', err);
                         notify('Failed to delete transactions', 'error', err.message || 'Server error');
@@ -1043,6 +1107,13 @@ export default function OwnerDashboard() {
                                                                   </span>
                                                             )}
                                                             <button
+                                                                  onClick={handleRefresh}
+                                                                  disabled={!selected || refreshing}
+                                                                  className={`hidden sm:inline-flex text-[11px] ${refreshing ? 'bg-slate-600 text-white' : 'bg-slate-700 hover:bg-slate-600 text-white'} rounded-full px-3 py-1 whitespace-nowrap`}
+                                                            >
+                                                                  {refreshing ? 'Refreshing…' : 'Refresh'}
+                                                            </button>
+                                                            <button
                                                                   onClick={sendDueReminder}
                                                                   className="hidden sm:inline-flex text-[11px] bg-emerald-600 hover:bg-emerald-500 text-black rounded-full px-3 py-1 whitespace-nowrap"
                                                             >
@@ -1099,6 +1170,32 @@ export default function OwnerDashboard() {
                                                             WhatsApp
                                                       </button>
                                                 </div>
+
+                                                {/* Undo bar for deleted transactions */}
+                                                {lastDeletedTxns && (
+                                                      <div className="px-3 sm:px-4 py-2 bg-amber-900 text-amber-100 text-[11px] flex items-center justify-between flex-shrink-0">
+                                                            <span>
+                                                                  Deleted {lastDeletedTxns.count} transaction(s). Undo in 10s.
+                                                            </span>
+                                                            <div>
+                                                                  <button
+                                                                        onClick={handleUndoTxnDelete}
+                                                                        className="underline font-semibold mr-2"
+                                                                  >
+                                                                        Undo
+                                                                  </button>
+                                                                  <button
+                                                                        onClick={() => {
+                                                                              clearTimeout(lastDeletedTxns.timeoutId);
+                                                                              setLastDeletedTxns(null);
+                                                                        }}
+                                                                        className="underline"
+                                                                  >
+                                                                        Dismiss
+                                                                  </button>
+                                                            </div>
+                                                      </div>
+                                                )}
 
                                                 {/* Chat search bar */}
                                                 <div className="px-3 sm:px-4 py-2 border-b border-slate-700 text-[11px] flex items-center gap-2 flex-shrink-0">
