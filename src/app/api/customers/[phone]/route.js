@@ -332,7 +332,46 @@ export async function PATCH(req, { params }) {
             }
 
             const body = await req.json();
-            const { ledger } = body;
+
+            // If body contains name/newPhone, treat as metadata update
+            const { ledger, name, newPhone } = body;
+
+            if (name || newPhone) {
+                  const updates = {};
+                  if (name) updates.name = String(name).trim();
+
+                  if (newPhone) {
+                        const normalizedNew = normalizeIndianMobile(newPhone);
+                        if (!normalizedNew) {
+                              const rawDigits = String(newPhone).replace(/\D/g, '');
+                              if (rawDigits.length === 10) {
+                                    // tolerate raw 10-digit input
+                                    updates.phone = rawDigits;
+                              } else {
+                                    return NextResponse.json({ error: 'Invalid new phone number' }, { status: 400 });
+                              }
+                        } else {
+                              updates.phone = normalizedNew;
+                        }
+                  }
+
+                  try {
+                        const updated = await Customer.findOneAndUpdate(
+                              { ownerId, phone: normalizedPhone },
+                              { $set: updates },
+                              { new: true, runValidators: true, context: 'query' },
+                        );
+                        if (!updated) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+                        return NextResponse.json(updated, { status: 200 });
+                  } catch (err) {
+                        if (err.code === 11000) {
+                              return NextResponse.json({ error: 'Customer with this phone already exists' }, { status: 409 });
+                        }
+                        throw err;
+                  }
+            }
+
+            // Otherwise, expect ledger replacement
             if (!Array.isArray(ledger)) {
                   return NextResponse.json({ error: 'Invalid ledger' }, { status: 400 });
             }

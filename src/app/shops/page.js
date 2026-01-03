@@ -100,6 +100,26 @@ const API = {
             return data;
       },
 
+      updateCustomer: async (phone, { name, newPhone }) => {
+            const token = getToken();
+            if (!token) throw new Error('No token - please login');
+
+            const res = await fetch(`/api/customers/${encodeURIComponent(phone)}`, {
+                  method: 'PATCH',
+                  headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({ name, newPhone }),
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                  throw new Error(data.error || data.message || 'Failed to update customer');
+            }
+            return data;
+      },
+
       addTxn: async (phone, type, amount, note) => {
             const token = getToken();
             if (!token) throw new Error('No token - please login');
@@ -253,6 +273,7 @@ export default function OwnerDashboard() {
 
       const [newName, setNewName] = useState('');
       const [newPhone, setNewPhone] = useState('');
+      const [editingCustomer, setEditingCustomer] = useState(null); // phone string when editing customer
 
       const [txnType, setTxnType] = useState('credit');
       const [txnAmount, setTxnAmount] = useState('');
@@ -479,6 +500,31 @@ export default function OwnerDashboard() {
 
             setLastDeleted({ customer, timeoutId });
             notify('Customer deleted', 'info', 'Undo within 10 seconds.');
+      };
+
+      const handleSaveCustomerEdit = async () => {
+            if (!editingCustomer) return;
+            if (!newName || !newPhone) {
+                  notify('Missing details', 'error', 'Enter customer name and phone.');
+                  return;
+            }
+            if (newPhone.length !== 10) {
+                  notify('Invalid phone', 'error', 'Phone number must be exactly 10 digits.');
+                  return;
+            }
+
+            try {
+                  const updated = await API.updateCustomer(editingCustomer, { name: newName, newPhone });
+                  setCustomers((prev) => prev.map((c) => (c.phone === editingCustomer ? updated : c)));
+                  setSelected(updated);
+                  setEditingCustomer(null);
+                  setNewName('');
+                  setNewPhone('');
+                  notify('Customer updated', 'success');
+            } catch (err) {
+                  console.error('Update customer error:', err);
+                  notify('Failed to update customer', 'error', err.message || 'Server error');
+            }
       };
 
       const handleUndoDelete = () => {
@@ -780,12 +826,26 @@ export default function OwnerDashboard() {
                                                             if (digits.length <= 10) setNewPhone(digits);
                                                       }}
                                                 />
-                                                <button
-                                                      onClick={handleAddCustomer}
-                                                      className="mt-1 w-full bg-emerald-500 hover:bg-emerald-600 rounded-full py-2 text-xs font-semibold text-black"
-                                                >
-                                                      + Add Customer
-                                                </button>
+                                                <div className="mt-1 w-full flex gap-2">
+                                                      <button
+                                                            onClick={editingCustomer ? handleSaveCustomerEdit : handleAddCustomer}
+                                                            className="flex-1 bg-emerald-500 hover:bg-emerald-600 rounded-full py-2 text-xs font-semibold text-black"
+                                                      >
+                                                            {editingCustomer ? 'Save changes' : '+ Add Customer'}
+                                                      </button>
+                                                      {editingCustomer && (
+                                                            <button
+                                                                  onClick={() => {
+                                                                        setEditingCustomer(null);
+                                                                        setNewName('');
+                                                                        setNewPhone('');
+                                                                  }}
+                                                                  className="w-28 bg-slate-600 hover:bg-slate-700 rounded-full py-2 text-xs font-semibold text-white"
+                                                            >
+                                                                  Cancel
+                                                            </button>
+                                                      )}
+                                                </div>
                                           </div>
                                     </div>
 
@@ -859,13 +919,28 @@ export default function OwnerDashboard() {
                                                             </div>
                                                       </button>
 
-                                                      <button
-                                                            onClick={() => handleDeleteCustomer(c)}
-                                                            className="text-[11px] text-red-400 hover:text-red-300 select-none flex-shrink-0"
-                                                            title="Delete customer"
-                                                      >
-                                                            🗑
-                                                      </button>
+                                                      <div className="flex items-center gap-2">
+                                                            <button
+                                                                  onClick={() => {
+                                                                        // start editing this customer
+                                                                        setEditingCustomer(c.phone);
+                                                                        setNewName(c.name || '');
+                                                                        setNewPhone(String(c.phone || ''));
+                                                                        if (isMobileView) setShowListOnMobile(false);
+                                                                  }}
+                                                                  className="text-[11px] text-sky-300 hover:text-sky-200 select-none flex-shrink-0"
+                                                                  title="Edit customer"
+                                                            >
+                                                                  ✎
+                                                            </button>
+                                                            <button
+                                                                  onClick={() => handleDeleteCustomer(c)}
+                                                                  className="text-[11px] text-red-400 hover:text-red-300 select-none flex-shrink-0"
+                                                                  title="Delete customer"
+                                                            >
+                                                                  🗑
+                                                            </button>
+                                                      </div>
                                                 </div>
                                           ))}
                                           {filteredCustomers.length === 0 && (
