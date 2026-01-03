@@ -653,8 +653,15 @@ export default function OwnerDashboard() {
                   }
 
                   if (!res.ok) {
-                        const body = await res.json().catch(() => ({}));
-                        throw new Error(body.error || body.message || `HTTP ${res.status}`);
+                        const contentType = res.headers.get('content-type') || '';
+                        let body;
+                        if (contentType.includes('application/json')) {
+                              body = await res.json().catch(() => ({}));
+                        } else {
+                              body = await res.text().catch(() => '');
+                        }
+                        console.error('PDF endpoint returned non-OK response', { status: res.status, body });
+                        throw new Error((body && body.error) || body || `HTTP ${res.status}`);
                   }
 
                   const blob = await res.blob();

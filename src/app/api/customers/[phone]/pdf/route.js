@@ -165,7 +165,7 @@ export async function GET(req, { params }) {
             });
 
             doc.end();
-            await new Promise((res) => doc.on('end', res));
+            await new Promise((resolve, reject) => { doc.on('end', resolve); doc.on('error', reject); });
             const pdf = Buffer.concat(buffers);
 
             return new NextResponse(pdf, {
