@@ -59,6 +59,28 @@ export async function POST(req) {
             });
       } catch (err) {
             console.error('GST invoice generation error:', err);
+            // Fallback: if the error looks like missing AFM (Helvetica.afm), try pdf-lib
+            try {
+                  if (err && err.code === 'ENOENT' && String(err.path || '').includes('Helvetica.afm')) {
+                        const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
+                        const pdfDoc = await PDFDocument.create();
+                        const page = pdfDoc.addPage([595, 842]); // A4
+                        const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+                        const fontSize = 14;
+                        page.drawText('GST INVOICE', { x: 40, y: 780, size: 18, font: helvetica, color: rgb(0, 0.4, 0.4) });
+                        page.drawText(`Customer: ${body.customer}`, { x: 40, y: 750, size: fontSize, font: helvetica });
+                        page.drawText(`Invoice No: GST-${Date.now()}`, { x: 40, y: 730, size: fontSize, font: helvetica });
+                        const gst = Number(body.amount || 0) * 0.18;
+                        page.drawText(`Base Amount: ₹${body.amount}`, { x: 40, y: 700, size: fontSize, font: helvetica });
+                        page.drawText(`GST (18%): ₹${gst.toFixed(2)}`, { x: 40, y: 680, size: fontSize, font: helvetica });
+                        page.drawText(`Total: ₹${(Number(body.amount || 0) + gst).toFixed(2)}`, { x: 40, y: 660, size: fontSize, font: helvetica });
+
+                        const pdfBytes = await pdfDoc.save();
+                        return new NextResponse(Buffer.from(pdfBytes), { headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename=gst-invoice-${Date.now()}.pdf` } });
+                  }
+            } catch (fallbackErr) {
+                  console.error('Fallback pdf-lib invoice generation failed:', fallbackErr);
+            }
             try {
                   // ensure the document is closed to free resources
                   doc.end();

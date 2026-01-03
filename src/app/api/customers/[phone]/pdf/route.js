@@ -176,6 +176,38 @@ export async function GET(req, { params }) {
             });
       } catch (err) {
             console.error('PDF generation error:', err);
+
+            // Fallback: handle missing built-in AFM font by using pdf-lib
+            try {
+                  if (err && err.code === 'ENOENT' && String(err.path || '').includes('Helvetica.afm')) {
+                        const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
+                        const pdfDoc = await PDFDocument.create();
+                        const page = pdfDoc.addPage([595, 842]);
+                        const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+                        const fontSize = 12;
+
+                        page.drawText('InfraCredit — Ledger', { x: 40, y: 800, size: 16, font: helvetica, color: rgb(0, 0.4, 0.4) });
+                        page.drawText(`Customer: ${customer.name || ''}    Phone: ${customer.phone}`, { x: 40, y: 780, size: fontSize, font: helvetica });
+                        page.drawText(`Current Due: ₹${customer.currentDue || 0}`, { x: 40, y: 760, size: fontSize, font: helvetica });
+
+                        let y = 740;
+                        (customer.ledger || []).forEach((e) => {
+                              if (y < 80) {
+                                    page.addPage();
+                                    y = 800;
+                              }
+                              const when = new Date(e.createdAt || e.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
+                              page.drawText(`${when}  ${String((e.type || '').toUpperCase()).padEnd(8)} ₹${e.amount}  Due: ₹${e.balanceAfter}  ${e.note || ''}`, { x: 40, y, size: fontSize, font: helvetica });
+                              y -= 18;
+                        });
+
+                        const pdfBytes = await pdfDoc.save();
+                        return new NextResponse(Buffer.from(pdfBytes), { headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename=ledger-${customer.phone}.pdf` } });
+                  }
+            } catch (fallbackErr) {
+                  console.error('Fallback pdf-lib ledger generation failed:', fallbackErr);
+            }
+
             return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
       }
 }
