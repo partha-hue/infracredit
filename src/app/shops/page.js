@@ -60,56 +60,63 @@ const API = {
             return data;
       },
 
-      getCustomer: async (phone) => {
+      getOwner: async () => {
             const token = getToken();
             if (!token) throw new Error('No token - please login');
-            const res = await fetch(`/api/customers/${encodeURIComponent(phone)}`, {
-                  headers: { Authorization: `Bearer ${token}` },
-            });
+            const res = await fetch('/api/owner/profile', { headers: { Authorization: `Bearer ${token}` } });
             const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || data.message || `Failed to load customer ${phone}`);
+            if (!res.ok) throw new Error(data.error || data.message || 'Failed to load owner');
             return data;
       },
 
-      addCustomer: async (name, phone) => {
+      updateOwner: async (payload) => {
             const token = getToken();
             if (!token) throw new Error('No token - please login');
-
-            const res = await fetch('/api/customers', {
-                  method: 'POST',
-                  headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({ name, phone }),
-            });
-
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                  throw new Error(data.error || data.message || 'Failed to add customer');
-            }
-            return data;
-      },
-
-      updateLedger: async (phone, ledger) => {
-            const token = getToken();
-            if (!token) throw new Error('No token - please login');
-
-            const res = await fetch(`/api/customers/${encodeURIComponent(phone)}`, {
+            const res = await fetch('/api/owner/profile', {
                   method: 'PATCH',
-                  headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({ ledger }),
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                  body: JSON.stringify(payload),
             });
-
             const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                  throw new Error(data.error || data.message || 'Failed to update ledger');
-            }
+            if (!res.ok) throw new Error(data.error || data.message || 'Failed to update owner');
             return data;
       },
+
+      const res = await fetch('/api/customers', {
+            method: 'POST',
+            headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ name, phone }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if(!res.ok) {
+            throw new Error(data.error || data.message || 'Failed to add customer');
+            }
+return data;
+      },
+
+updateLedger: async (phone, ledger) => {
+      const token = getToken();
+      if (!token) throw new Error('No token - please login');
+
+      const res = await fetch(`/api/customers/${encodeURIComponent(phone)}`, {
+            method: 'PATCH',
+            headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ ledger }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+            throw new Error(data.error || data.message || 'Failed to update ledger');
+      }
+      return data;
+},
 
       updateCustomer: async (phone, { name, newPhone }) => {
             const token = getToken();
@@ -131,33 +138,33 @@ const API = {
             return data;
       },
 
-      addTxn: async (phone, type, amount, note) => {
-            const token = getToken();
-            if (!token) throw new Error('No token - please login');
-            const normalizedPhone = normalizeIndianMobile(phone);
-            if (!normalizedPhone) throw new Error('Invalid phone number. Enter a 10-digit Indian mobile number (e.g., 9876543210).');
+            addTxn: async (phone, type, amount, note) => {
+                  const token = getToken();
+                  if (!token) throw new Error('No token - please login');
+                  const normalizedPhone = normalizeIndianMobile(phone);
+                  if (!normalizedPhone) throw new Error('Invalid phone number. Enter a 10-digit Indian mobile number (e.g., 9876543210).');
 
-            const res = await fetch(`/api/customers/${encodeURIComponent(normalizedPhone)}`, {
-                  method: 'POST',
-                  headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({
-                        type,
-                        amount,
-                        note,
-                        date: new Date().toISOString()  // 🔥 FIXED: Added date field
-                  }),
-            });
+                  const res = await fetch(`/api/customers/${encodeURIComponent(normalizedPhone)}`, {
+                        method: 'POST',
+                        headers: {
+                              'Content-Type': 'application/json',
+                              Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                              type,
+                              amount,
+                              note,
+                              date: new Date().toISOString()  // 🔥 FIXED: Added date field
+                        }),
+                  });
 
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                  console.error('addTxn API error:', data);
-                  throw new Error(data.error || data.message || `HTTP ${res.status} - Transaction failed`);
-            }
-            return data;
-      },
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) {
+                        console.error('addTxn API error:', data);
+                        throw new Error(data.error || data.message || `HTTP ${res.status} - Transaction failed`);
+                  }
+                  return data;
+            },
 };
 
 /* ======================
@@ -337,6 +344,9 @@ export default function OwnerDashboard() {
       const messagesEndRef = useRef(null);
 
       const [toasts, setToasts] = useState([]);
+      const [ownerProfile, setOwnerProfile] = useState(null);
+      const [ownerModalOpen, setOwnerModalOpen] = useState(false);
+      const [ownerEdit, setOwnerEdit] = useState({ ownerName: '', shopName: '', email: '', phone: '', avatarUrl: '' });
 
       const [isMobileView, setIsMobileView] = useState(true);
       const [showListOnMobile, setShowListOnMobile] = useState(true);
@@ -357,8 +367,13 @@ export default function OwnerDashboard() {
 
       const load = async () => {
             try {
-                  const data = await API.listCustomers();
+                  const token = getToken();
+                  const [data, owner] = await Promise.all([API.listCustomers(), token ? API.getOwner() : Promise.resolve(null)]);
                   setCustomers(data);
+                  if (owner) {
+                        setOwnerProfile(owner);
+                        setOwnerEdit({ ownerName: owner.ownerName || '', shopName: owner.shopName || '', email: owner.email || '', phone: owner.phone || '', avatarUrl: owner.avatarUrl || '' });
+                  }
 
                   if (!selected && data.length) setSelected(data[0]);
                   if (selected) {
@@ -924,6 +939,21 @@ export default function OwnerDashboard() {
                                           >
                                                 {isDark ? '🌙' : '☀️'}
                                           </button>
+
+                                          {/* Owner avatar */}
+                                          <div className="relative ml-2">
+                                                <button
+                                                      onClick={() => setOwnerModalOpen(true)}
+                                                      className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white select-none"
+                                                      title="Profile"
+                                                >
+                                                      {ownerProfile?.avatarUrl ? (
+                                                            <img src={ownerProfile.avatarUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
+                                                      ) : (
+                                                            (ownerProfile?.ownerName || 'O')[0]?.toUpperCase()
+                                                      )}
+                                                </button>
+                                          </div>
                                     </div>
 
                                     {/* Search + filter */}
@@ -1505,6 +1535,61 @@ export default function OwnerDashboard() {
                                           >
                                                 Close
                                           </button>
+                                    </div>
+                              </div>
+                        </div>
+                  )}
+
+                  {/* Owner profile modal */}
+                  {ownerModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                              <div className="bg-white dark:bg-slate-900 rounded-xl p-4 w-[92%] max-w-md">
+                                    <h3 className="text-sm font-semibold mb-2">Owner Profile</h3>
+                                    <div className="mb-3 text-xs text-slate-500">Edit your shop and contact details</div>
+
+                                    <div className="mb-3">
+                                          <label className="text-[11px] text-slate-400">Owner Name</label>
+                                          <input className="w-full rounded-md p-2 mt-1 text-sm bg-slate-800 text-white" value={ownerEdit.ownerName} onChange={(e) => setOwnerEdit((p) => ({ ...p, ownerName: e.target.value }))} />
+                                    </div>
+
+                                    <div className="mb-3">
+                                          <label className="text-[11px] text-slate-400">Shop Name</label>
+                                          <input className="w-full rounded-md p-2 mt-1 text-sm bg-slate-800 text-white" value={ownerEdit.shopName} onChange={(e) => setOwnerEdit((p) => ({ ...p, shopName: e.target.value }))} />
+                                    </div>
+
+                                    <div className="mb-3">
+                                          <label className="text-[11px] text-slate-400">Email</label>
+                                          <input className="w-full rounded-md p-2 mt-1 text-sm bg-slate-800 text-white" value={ownerEdit.email} onChange={(e) => setOwnerEdit((p) => ({ ...p, email: e.target.value }))} />
+                                    </div>
+
+                                    <div className="mb-3">
+                                          <label className="text-[11px] text-slate-400">Phone</label>
+                                          <input className="w-full rounded-md p-2 mt-1 text-sm bg-slate-800 text-white" value={ownerEdit.phone} onChange={(e) => setOwnerEdit((p) => ({ ...p, phone: e.target.value.replace(/\D/g, '') }))} />
+                                    </div>
+
+                                    <div className="mb-3">
+                                          <label className="text-[11px] text-slate-400">Avatar URL</label>
+                                          <input className="w-full rounded-md p-2 mt-1 text-sm bg-slate-800 text-white" value={ownerEdit.avatarUrl} onChange={(e) => setOwnerEdit((p) => ({ ...p, avatarUrl: e.target.value }))} />
+                                    </div>
+
+                                    <div className="flex gap-2 justify-end">
+                                          <button onClick={async () => {
+                                                try {
+                                                      const res = await API.updateOwner(ownerEdit);
+                                                      // API returns { owner, token }
+                                                      setOwnerProfile(res.owner);
+                                                      if (res.token) {
+                                                            localStorage.setItem('token', res.token);
+                                                      }
+                                                      notify('Profile updated', 'success');
+                                                      setOwnerModalOpen(false);
+                                                } catch (err) {
+                                                      console.error('Update owner error:', err);
+                                                      notify('Failed to update profile', 'error', err.message || 'Server error');
+                                                }
+                                          }} className="px-3 py-2 rounded-full bg-emerald-500 text-black text-sm">Save</button>
+
+                                          <button onClick={() => { setOwnerModalOpen(false); setOwnerEdit({ ownerName: ownerProfile?.ownerName || '', shopName: ownerProfile?.shopName || '', email: ownerProfile?.email || '', phone: ownerProfile?.phone || '', avatarUrl: ownerProfile?.avatarUrl || '' }); }} className="px-3 py-2 rounded-full bg-slate-600 text-white text-sm">Cancel</button>
                                     </div>
                               </div>
                         </div>
