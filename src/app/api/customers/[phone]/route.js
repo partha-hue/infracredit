@@ -291,6 +291,83 @@ export async function POST(req, { params }) {
       }
 }
 
+/* ===== PATCH /api/customers/[phone] ===== */
+export async function PATCH(req, { params }) {
+      try {
+            await dbConnect();
+
+            if (!process.env.JWT_SECRET) {
+                  return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
+            }
+
+            const token = getToken(req);
+            if (!token) {
+                  return NextResponse.json({ error: 'Unauthorized: token missing' }, { status: 401 });
+            }
+
+            let decoded;
+            try {
+                  decoded = jwt.verify(token, process.env.JWT_SECRET);
+            } catch {
+                  return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+            }
+
+            const ownerId = toObjectId(decoded.id);
+            if (!ownerId) {
+                  return NextResponse.json({ error: 'Invalid owner id in token' }, { status: 400 });
+            }
+
+            const rawParam = extractPhoneFromReq(req, params);
+            if (!rawParam) {
+                  return NextResponse.json({ error: 'Phone parameter is missing' }, { status: 400 });
+            }
+
+            let normalizedPhone = normalizeIndianMobile(rawParam);
+            if (!normalizedPhone) {
+                  const rawDigits = String(rawParam || '').replace(/\D/g, '');
+                  if (rawDigits.length === 10) normalizedPhone = rawDigits;
+            }
+            if (!normalizedPhone) {
+                  return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 });
+            }
+
+            const body = await req.json();
+            const { ledger } = body;
+            if (!Array.isArray(ledger)) {
+                  return NextResponse.json({ error: 'Invalid ledger' }, { status: 400 });
+            }
+
+            // sanitize entries: ensure amount is Number and type is valid, compute balanceAfter
+            let running = 0;
+            const sanitized = ledger.map((entry) => {
+                  const type = entry.type === 'credit' ? 'credit' : 'payment';
+                  const amount = Number(entry.amount) || 0;
+                  const signed = type === 'credit' ? Math.abs(amount) : -Math.abs(amount);
+                  running += signed;
+                  return {
+                        ...entry,
+                        type,
+                        amount: signed,
+                        balanceAfter: running,
+                        createdAt: entry.createdAt ? new Date(entry.createdAt) : new Date(),
+                  };
+            });
+
+            const customer = await Customer.findOne({ ownerId, phone: normalizedPhone });
+            if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+
+            customer.ledger = sanitized;
+            customer.currentDue = running;
+
+            await customer.save();
+
+            return NextResponse.json(customer, { status: 200 });
+      } catch (err) {
+            console.error('PATCH /api/customers/[phone] error:', err);
+            return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+      }
+}
+
 /* ===== DELETE /api/customers/[phone] ===== */
 export async function DELETE(req, { params }) {
       try {
@@ -374,89 +451,13 @@ export async function DELETE(req, { params }) {
 
             console.log(`Customer deleted: ${normalizedPhone}`);
             return NextResponse.json({ message: 'Customer deleted' }, { status: 200 });
+      } catch (err) {
+            console.error('DELETE /api/customers/[phone] error:', err);
+            return NextResponse.json(
+                  { error: err.message || 'Server error' },
+                  { status: 500 },
+            );
       }
 
-/* ===== PATCH /api/customers/[phone] ===== */
-export async function PATCH(req, { params }) {
-            try {
-                  await dbConnect();
 
-                  if (!process.env.JWT_SECRET) {
-                        return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
-                  }
-
-                  const token = getToken(req);
-                  if (!token) {
-                        return NextResponse.json({ error: 'Unauthorized: token missing' }, { status: 401 });
-                  }
-
-                  let decoded;
-                  try {
-                        decoded = jwt.verify(token, process.env.JWT_SECRET);
-                  } catch {
-                        return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
-                  }
-
-                  const ownerId = toObjectId(decoded.id);
-                  if (!ownerId) {
-                        return NextResponse.json({ error: 'Invalid owner id in token' }, { status: 400 });
-                  }
-
-                  const rawParam = extractPhoneFromReq(req, params);
-                  if (!rawParam) {
-                        return NextResponse.json({ error: 'Phone parameter is missing' }, { status: 400 });
-                  }
-
-                  let normalizedPhone = normalizeIndianMobile(rawParam);
-                  if (!normalizedPhone) {
-                        const rawDigits = String(rawParam || '').replace(/\D/g, '');
-                        if (rawDigits.length === 10) normalizedPhone = rawDigits;
-                  }
-                  if (!normalizedPhone) {
-                        return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 });
-                  }
-
-                  const body = await req.json();
-                  const { ledger } = body;
-                  if (!Array.isArray(ledger)) {
-                        return NextResponse.json({ error: 'Invalid ledger' }, { status: 400 });
-                  }
-
-                  // sanitize entries: ensure amount is Number and type is valid, compute balanceAfter
-                  let running = 0;
-                  const sanitized = ledger.map((entry) => {
-                        const type = entry.type === 'credit' ? 'credit' : 'payment';
-                        const amount = Number(entry.amount) || 0;
-                        const signed = type === 'credit' ? Math.abs(amount) : -Math.abs(amount);
-                        running += signed;
-                        return {
-                              ...entry,
-                              type,
-                              amount: signed,
-                              balanceAfter: running,
-                              createdAt: entry.createdAt ? new Date(entry.createdAt) : new Date(),
-                        };
-                  });
-
-                  const customer = await Customer.findOne({ ownerId, phone: normalizedPhone });
-                  if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
-
-                  customer.ledger = sanitized;
-                  customer.currentDue = running;
-
-                  await customer.save();
-
-                  return NextResponse.json(customer, { status: 200 });
-            } catch (err) {
-                  console.error('PATCH /api/customers/[phone] error:', err);
-                  return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
-            }
-      }
-} catch (err) {
-      console.error('DELETE /api/customers/[phone] error:', err);
-      return NextResponse.json(
-            { error: err.message || 'Server error' },
-            { status: 500 },
-      );
-}
 }

@@ -588,7 +588,7 @@ export default function OwnerDashboard() {
             setChatMenuOpen((v) => !v);
       };
 
-      const handleTxnAction = (action) => {
+      const handleTxnAction = async (action) => {
             if (!selected || selectedTxnIds.size === 0) return;
 
             const idsArray = Array.from(selectedTxnIds);
