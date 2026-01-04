@@ -89,10 +89,20 @@ export async function GET(req, { params }) {
                   const rawDigits = String(rawParam || '').replace(/\D/g, '');
                   if (rawDigits.length === 10) normalizedPhone = rawDigits;
             }
-            if (!normalizedPhone) return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 });
 
-            const customer = await Customer.findOne({ ownerId, phone: normalizedPhone });
-            if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+            // If still no normalization, try a relaxed lookup using the raw param (owner may have stored unnormalized phone)
+            let customer = null;
+            if (normalizedPhone) {
+                  customer = await Customer.findOne({ ownerId, phone: normalizedPhone });
+            } else {
+                  const rawDigits = String(rawParam || '').replace(/\D/g, '');
+                  // try exact raw param, digits only, and a contains match on digits
+                  customer = await Customer.findOne({ ownerId, $or: [{ phone: rawParam }, { phone: rawDigits }, { phone: { $regex: rawDigits } }] });
+            }
+
+            if (!customer) return NextResponse.json({ error: 'Invalid phone number or customer not found' }, { status: 400 });
+            // ensure we have canonical phone for filename and message
+            const customerPhone = customer.phone;
 
             // parse query param `type` to choose ledger or invoice
             const url = new URL(req.url);
