@@ -45,7 +45,15 @@ function extractPhoneFromReq(req, params) {
       try {
             const url = new URL(req.url, 'http://localhost');
             const parts = url.pathname.split('/').filter(Boolean);
-            return parts.length ? parts[parts.length - 1] : null;
+            // Find a segment that looks like a phone (contains at least 6 digits) or a mostly numeric segment
+            for (let i = 0; i < parts.length; i++) {
+                  const seg = parts[i];
+                  const digits = (seg || '').replace(/\D/g, '');
+                  if (digits.length >= 6) return seg; // return the original segment (may include +91 or leading zeros)
+            }
+            // fallback: return second last segment if pattern like /customers/:phone/pdf
+            if (parts.length >= 2) return parts[parts.length - 2];
+            return null;
       } catch (e) {
             return null;
       }
@@ -177,12 +185,15 @@ export async function GET(req, { params }) {
       } catch (err) {
             console.error('PDF generation error:', err);
 
-            // Fallback: handle missing built-in AFM font by using pdf-lib
+            // Fallback: handle missing built-in AFM font by using pdf-lib (broader detection)
             try {
-                  if (err && err.code === 'ENOENT' && String(err.path || '').includes('Helvetica.afm')) {
+                  const msg = String(err?.message || '').toLowerCase();
+                  const looksLikeMissingAfm = err?.code === 'ENOENT' || msg.includes('helvetica.afm') || msg.includes('no such file') || msg.includes('afm');
+                  if (looksLikeMissingAfm) {
+                        console.warn('PDFKit AFM missing, using pdf-lib fallback for ledger (detected error):', err?.message || err);
                         const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
                         const pdfDoc = await PDFDocument.create();
-                        const page = pdfDoc.addPage([595, 842]);
+                        let page = pdfDoc.addPage([595, 842]);
                         const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
                         const fontSize = 12;
 
@@ -193,7 +204,7 @@ export async function GET(req, { params }) {
                         let y = 740;
                         (customer.ledger || []).forEach((e) => {
                               if (y < 80) {
-                                    page.addPage();
+                                    page = pdfDoc.addPage();
                                     y = 800;
                               }
                               const when = new Date(e.createdAt || e.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });

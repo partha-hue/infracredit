@@ -59,9 +59,12 @@ export async function POST(req) {
             });
       } catch (err) {
             console.error('GST invoice generation error:', err);
-            // Fallback: if the error looks like missing AFM (Helvetica.afm), try pdf-lib
+            // Fallback: if the error looks like missing AFM (Helvetica.afm) or other font issues, try pdf-lib
             try {
-                  if (err && err.code === 'ENOENT' && String(err.path || '').includes('Helvetica.afm')) {
+                  const msg = String(err?.message || '').toLowerCase();
+                  const looksLikeMissingAfm = err?.code === 'ENOENT' || msg.includes('helvetica.afm') || msg.includes('no such file') || msg.includes('afm');
+                  if (looksLikeMissingAfm) {
+                        console.warn('PDFKit AFM missing, using pdf-lib fallback for GST invoice (detected error):', err?.message || err);
                         const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
                         const pdfDoc = await PDFDocument.create();
                         const page = pdfDoc.addPage([595, 842]); // A4
