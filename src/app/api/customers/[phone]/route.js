@@ -140,7 +140,14 @@ export async function GET(req, { params }) {
                   );
             }
 
-            const customer = await Customer.findOne({ ownerId, phone: normalizedPhone });
+            let customer;
+            if (ownerId) {
+                  customer = await Customer.findOne({ ownerId, phone: normalizedPhone });
+            } else {
+                  // public lookup; choose the most recently created customer if multiple exist
+                  customer = await Customer.findOne({ phone: normalizedPhone }).sort({ createdAt: -1 });
+            }
+
             if (!customer) {
                   return NextResponse.json(
                         { error: 'Customer not found' },

@@ -28,12 +28,17 @@ export default function CustomerKhataPage({ params }) {
                               headers: token ? { Authorization: `Bearer ${token}` } : {},
                         });
 
-                        if (!res.ok) throw new Error('Failed to load customer');
+                        if (!res.ok) {
+                              const errBody = await res.json().catch(() => null);
+                              const msg = errBody?.error || `Failed to load customer (status ${res.status})`;
+                              throw new Error(msg);
+                        }
+
                         const data = await res.json();
                         setCustomer(data);
                   } catch (err) {
                         console.error(err);
-                        alert('Unable to load your khata. Please contact shop owner.');
+                        alert(err?.message || 'Unable to load your khata. Please contact shop owner.');
                   } finally {
                         setLoading(false);
                   }
