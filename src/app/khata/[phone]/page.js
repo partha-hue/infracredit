@@ -11,6 +11,32 @@ const getToken = () => {
       return localStorage.getItem('token');
 };
 
+// Normalize Indian mobile numbers on client side. Mirrors server behavior:
+// - strips non-digits
+// - removes leading 0091 / 91 / 0 only when doing so still leaves >= 10 digits
+// - accepts numbers that are exactly 10 digits (fallback)
+const normalizeIndianMobile = (rawPhone) => {
+      if (!rawPhone) return null;
+      const original = String(rawPhone);
+      let digits = original.replace(/\D/g, '');
+
+      if (digits.startsWith('0091') && digits.length - 4 >= 10) {
+            digits = digits.slice(4);
+      } else if (digits.startsWith('91') && digits.length - 2 >= 10) {
+            digits = digits.slice(2);
+      } else if (digits.startsWith('0') && digits.length - 1 >= 10) {
+            digits = digits.slice(1);
+      }
+
+      // Indian mobile numbers usually start with 6-9 and have 10 digits
+      if (/^[6-9]\d{9}$/.test(digits)) return digits;
+
+      // Fallback: accept any 10-digit number for compatibility
+      if (digits.length === 10) return digits;
+
+      return null;
+};
+
 export default function CustomerKhataPage({ params }) {
       const { phone } = params;
 
