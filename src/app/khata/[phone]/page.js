@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { Workbox } from 'workbox-window';
+
 
 /* ======================
    OPTIONAL TOKEN HELPER
@@ -48,6 +50,18 @@ export default function CustomerKhataPage({ params }) {
             const load = async () => {
                   try {
                         const token = getToken();
+
+                        // Register service worker when available
+                        if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+                              const wb = new Workbox('/sw.js');
+                              wb.addEventListener('installed', (event) => {
+                                    if (event.isUpdate) {
+                                          // notify user that an update is available
+                                          console.debug('New service worker installed');
+                                    }
+                              });
+                              wb.register();
+                        }
 
                         // Normalize and validate phone on client before fetching.
                         let normalizedPhone = normalizeIndianMobile(phone);
