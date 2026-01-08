@@ -49,8 +49,26 @@ export default function CustomerKhataPage({ params }) {
                   try {
                         const token = getToken();
 
-                        const normalizedPhone = normalizeIndianMobile(phone);
-                        const res = await fetch(`/api/customers/${encodeURIComponent(normalizedPhone ?? phone)}`, {
+                        // Normalize and validate phone on client before fetching.
+                        let normalizedPhone = normalizeIndianMobile(phone);
+
+                        // Client-side tolerant fallback: accept raw 10-digit sequence if normalization fails
+                        if (!normalizedPhone) {
+                              const rawDigits = String(phone || '').replace(/\D/g, '');
+                              if (rawDigits.length === 10) {
+                                    console.warn('Client-side fallback: using raw 10-digit phone', { phone, rawDigits });
+                                    normalizedPhone = rawDigits;
+                              }
+                        }
+
+                        if (!normalizedPhone) {
+                              // avoid making the request with invalid input
+                              throw new Error('Invalid phone number in link');
+                        }
+
+                        console.debug('Fetching customer for phone', normalizedPhone);
+
+                        const res = await fetch(`/api/customers/${encodeURIComponent(normalizedPhone)}`, {
                               headers: token ? { Authorization: `Bearer ${token}` } : {},
                         });
 
