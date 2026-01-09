@@ -1,26 +1,19 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Workbox } from 'workbox-window';
-
 
 /* ======================
    OPTIONAL TOKEN HELPER
-   (use if endpoint requires owner token)
 ====================== */
 const getToken = () => {
       if (typeof window === 'undefined') return null;
       return localStorage.getItem('token');
 };
 
-// Normalize Indian mobile numbers on client side. Mirrors server behavior:
-// - strips non-digits
-// - removes leading 0091 / 91 / 0 only when doing so still leaves >= 10 digits
-// - accepts numbers that are exactly 10 digits (fallback)
+// Normalize Indian mobile numbers
 const normalizeIndianMobile = (rawPhone) => {
       if (!rawPhone) return null;
-      const original = String(rawPhone);
-      let digits = original.replace(/\D/g, '');
+      let digits = String(rawPhone).replace(/\D/g, '');
 
       if (digits.startsWith('0091') && digits.length - 4 >= 10) {
             digits = digits.slice(4);
@@ -30,73 +23,84 @@ const normalizeIndianMobile = (rawPhone) => {
             digits = digits.slice(1);
       }
 
-      // Indian mobile numbers usually start with 6-9 and have 10 digits
       if (/^[6-9]\d{9}$/.test(digits)) return digits;
-
-      // Fallback: accept any 10-digit number for compatibility
       if (digits.length === 10) return digits;
 
       return null;
 };
+
+export const dynamic = 'force-dynamic';
 
 export default function CustomerKhataPage({ params }) {
       const { phone } = params;
 
       const [customer, setCustomer] = useState(null);
       const [loading, setLoading] = useState(true);
-      const [theme, setTheme] = useState('dark'); // dark | light
+      const [theme, setTheme] = useState('dark');
 
       useEffect(() => {
             const load = async () => {
                   try {
                         const token = getToken();
 
-                        // Register service worker when available
-                        if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
-                              const wb = new Workbox('/sw.js');
-                              wb.addEventListener('installed', (event) => {
-                                    if (event.isUpdate) {
-                                          // notify user that an update is available
-                                          console.debug('New service worker installed');
-                                    }
-                              });
-                              wb.register();
+                        /* ✅ SAFE SERVICE WORKER REGISTRATION */
+                        if (
+                              typeof window !== 'undefined' &&
+                              'serviceWorker' in navigator &&
+                              process.env.NODE_ENV === 'production'
+                        ) {
+                              import('workbox-window')
+                                    .then(({ Workbox }) => {
+                                          const wb = new Workbox('/sw.js');
+
+                                          wb.addEventListener('installed', (event) => {
+                                                if (event.isUpdate) {
+                                                      console.debug('New service worker installed');
+                                                }
+                                          });
+
+                                          wb.register();
+                                    })
+                                    .catch((err) => {
+                                          console.error('Workbox load failed', err);
+                                    });
                         }
 
-                        // Normalize and validate phone on client before fetching.
                         let normalizedPhone = normalizeIndianMobile(phone);
 
-                        // Client-side tolerant fallback: accept raw 10-digit sequence if normalization fails
                         if (!normalizedPhone) {
                               const rawDigits = String(phone || '').replace(/\D/g, '');
                               if (rawDigits.length === 10) {
-                                    console.warn('Client-side fallback: using raw 10-digit phone', { phone, rawDigits });
                                     normalizedPhone = rawDigits;
                               }
                         }
 
                         if (!normalizedPhone) {
-                              // avoid making the request with invalid input
                               throw new Error('Invalid phone number in link');
                         }
 
-                        console.debug('Fetching customer for phone', normalizedPhone);
-
-                        const res = await fetch(`/api/customers/${encodeURIComponent(normalizedPhone)}`, {
-                              headers: token ? { Authorization: `Bearer ${token}` } : {},
-                        });
+                        const res = await fetch(
+                              `/api/customers/${encodeURIComponent(normalizedPhone)}`,
+                              {
+                                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                              }
+                        );
 
                         if (!res.ok) {
                               const errBody = await res.json().catch(() => null);
-                              const msg = errBody?.error || `Failed to load customer (status ${res.status})`;
-                              throw new Error(msg);
+                              throw new Error(
+                                    errBody?.error || `Failed to load customer (${res.status})`
+                              );
                         }
 
                         const data = await res.json();
                         setCustomer(data);
                   } catch (err) {
                         console.error(err);
-                        alert(err?.message || 'Unable to load your khata. Please contact shop owner.');
+                        alert(
+                              err?.message ||
+                              'Unable to load your khata. Please contact shop owner.'
+                        );
                   } finally {
                         setLoading(false);
                   }
@@ -122,9 +126,7 @@ export default function CustomerKhataPage({ params }) {
 
       if (loading) {
             return (
-                  <div
-                        className={`min-h-screen flex items-center justify-center ${rootBg} ${textColor}`}
-                  >
+                  <div className={`min-h-screen flex items-center justify-center ${rootBg} ${textColor}`}>
                         Loading...
                   </div>
             );
@@ -132,9 +134,7 @@ export default function CustomerKhataPage({ params }) {
 
       if (!customer) {
             return (
-                  <div
-                        className={`min-h-screen flex items-center justify-center ${rootBg} ${textColor}`}
-                  >
+                  <div className={`min-h-screen flex items-center justify-center ${rootBg} ${textColor}`}>
                         Could not find your khata.
                   </div>
             );
@@ -142,10 +142,7 @@ export default function CustomerKhataPage({ params }) {
 
       return (
             <div className={`min-h-screen ${rootBg} ${textColor} flex flex-col`}>
-                  {/* Header like Android WhatsApp chat */}
-                  <div
-                        className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b border-slate-800`}
-                  >
+                  <div className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b border-slate-800`}>
                         <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white">
                                     {customer.name?.[0]?.toUpperCase() || 'C'}
@@ -159,70 +156,32 @@ export default function CustomerKhataPage({ params }) {
                         <button
                               onClick={() => setTheme(isDark ? 'light' : 'dark')}
                               className="text-xl"
-                              title="Toggle theme"
                         >
                               {isDark ? '🌙' : '☀️'}
                         </button>
                   </div>
 
-                  {/* Current due card */}
                   <div className="px-4 py-3 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-300">
                         Current Due: ₹{customer.currentDue}
                   </div>
 
-                  {/* Ledger messages */}
-                  <main
-                        className={`flex-1 overflow-y-auto px-2 sm:px-4 py-3 space-y-1 ${chatBg}`}
-                  >
-                        {customer.ledger && customer.ledger.length > 0 && (
-                              <div className="flex justify-center mb-2">
-                                    <span className="text-[10px] bg-slate-800 text-slate-300 rounded-full px-3 py-1">
-                                          Your borrow history
-                                    </span>
-                              </div>
-                        )}
-
-                        {[...(customer.ledger || [])]
-                              .slice()
-                              .reverse()
-                              .map((t, i) => {
-                                    const isCredit = t.type === 'credit';
-                                    const bubbleClass = isCredit ? bubbleCredit : bubblePayment;
-                                    const justify = isCredit ? 'flex-end' : 'flex-start';
-
-                                    return (
-                                          <div
-                                                key={i}
-                                                className="w-full clearfix flex"
-                                                style={{ justifyContent: justify }}
-                                          >
-                                                <div
-                                                      className={`max-w-[80%] rounded-2xl px-3 py-2 text-xs shadow-sm ${bubbleClass}`}
-                                                >
-                                                      <div className="flex justify-between items-center gap-2">
-                                                            <span className="font-semibold">
-                                                                  {isCredit ? 'Udhaar' : 'Payment'}
-                                                            </span>
-                                                            <span className="text-[10px] opacity-80">{t.date}</span>
-                                                      </div>
-                                                      <div className="mt-1 text-[11px]">{t.note || '-'}</div>
-                                                      <div className="mt-1 text-right text-sm font-bold">
-                                                            ₹{t.amount}
-                                                      </div>
+                  <main className={`flex-1 overflow-y-auto px-2 sm:px-4 py-3 space-y-1 ${chatBg}`}>
+                        {[...(customer.ledger || [])].reverse().map((t, i) => {
+                              const isCredit = t.type === 'credit';
+                              return (
+                                    <div key={i} className={`flex ${isCredit ? 'justify-end' : 'justify-start'}`}>
+                                          <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-xs shadow-sm ${isCredit ? bubbleCredit : bubblePayment}`}>
+                                                <div className="flex justify-between text-[10px] opacity-80">
+                                                      <span>{isCredit ? 'Udhaar' : 'Payment'}</span>
+                                                      <span>{t.date}</span>
                                                 </div>
+                                                <div className="mt-1">{t.note || '-'}</div>
+                                                <div className="mt-1 text-right font-bold">₹{t.amount}</div>
                                           </div>
-                                    );
-                              })}
-
-                        {(!customer.ledger || customer.ledger.length === 0) && (
-                              <div className="flex flex-col items-center justify-center h-full text-xs text-slate-500">
-                                    <p>No entries yet.</p>
-                                    <p>Please check again after the shop adds your transactions.</p>
-                              </div>
-                        )}
+                                    </div>
+                              );
+                        })}
                   </main>
-
-                  {/* Read‑only: no input bar here */}
             </div>
       );
 }

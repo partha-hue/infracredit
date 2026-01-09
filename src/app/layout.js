@@ -27,3 +27,10 @@ export default function RootLayout({ children }) {
           // You can show a custom install button in your app and call deferredPrompt.prompt()
         });
         `}} />
+      </head>
+      <body>
+        {children}
+      </body>
+    </html>
+  );
+}
