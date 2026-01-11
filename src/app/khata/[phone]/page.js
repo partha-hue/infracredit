@@ -32,11 +32,11 @@ const normalizeIndianMobile = (rawPhone) => {
 export const dynamic = 'force-dynamic';
 
 export default function CustomerKhataPage({ params }) {
-      const { phone } = params;
+      const phoneParam = React.use(params).phone;
 
       const [customer, setCustomer] = useState(null);
       const [loading, setLoading] = useState(true);
-      const [theme, setTheme] = useState('dark');
+      const [theme, setTheme] = useState('light'); // Default to light mode for clear visibility
 
       useEffect(() => {
             const load = async () => {
@@ -52,13 +52,6 @@ export default function CustomerKhataPage({ params }) {
                               import('workbox-window')
                                     .then(({ Workbox }) => {
                                           const wb = new Workbox('/sw.js');
-
-                                          wb.addEventListener('installed', (event) => {
-                                                if (event.isUpdate) {
-                                                      console.debug('New service worker installed');
-                                                }
-                                          });
-
                                           wb.register();
                                     })
                                     .catch((err) => {
@@ -66,10 +59,10 @@ export default function CustomerKhataPage({ params }) {
                                     });
                         }
 
-                        let normalizedPhone = normalizeIndianMobile(phone);
+                        let normalizedPhone = normalizeIndianMobile(phoneParam);
 
                         if (!normalizedPhone) {
-                              const rawDigits = String(phone || '').replace(/\D/g, '');
+                              const rawDigits = String(phoneParam || '').replace(/\D/g, '');
                               if (rawDigits.length === 10) {
                                     normalizedPhone = rawDigits;
                               }
@@ -107,27 +100,31 @@ export default function CustomerKhataPage({ params }) {
             };
 
             load();
-      }, [phone]);
+      }, [phoneParam]);
 
       const isDark = theme === 'dark';
 
-      const rootBg = isDark ? 'bg-slate-900' : 'bg-slate-100';
+      const rootBg = isDark ? 'bg-slate-900' : 'bg-slate-50';
       const textColor = isDark ? 'text-slate-100' : 'text-slate-900';
       const headerBg = isDark ? 'bg-slate-900' : 'bg-white';
+      const borderCol = isDark ? 'border-slate-800' : 'border-slate-200';
       const chatBg = isDark
             ? 'bg-[radial-gradient(circle_at_top,#1f2937,#020617)]'
-            : 'bg-[radial-gradient(circle_at_top,#e5e7eb,#ffffff)]';
+            : 'bg-white';
       const bubbleCredit = isDark
-            ? 'bg-emerald-600 text-slate-900'
-            : 'bg-emerald-500 text-white';
+            ? 'bg-emerald-600 text-white'
+            : 'bg-emerald-100 text-emerald-900 border border-emerald-200';
       const bubblePayment = isDark
             ? 'bg-slate-800 text-slate-100'
-            : 'bg-white text-slate-900';
+            : 'bg-slate-100 text-slate-800 border border-slate-200';
 
       if (loading) {
             return (
                   <div className={`min-h-screen flex items-center justify-center ${rootBg} ${textColor}`}>
-                        Loading...
+                        <div className="flex flex-col items-center gap-2">
+                              <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                              <p className="text-sm">Loading Khata...</p>
+                        </div>
                   </div>
             );
       }
@@ -141,47 +138,83 @@ export default function CustomerKhataPage({ params }) {
       }
 
       return (
-            <div className={`min-h-screen ${rootBg} ${textColor} flex flex-col`}>
-                  <div className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b border-slate-800`}>
+            <div className={`min-h-screen ${rootBg} ${textColor} flex flex-col font-sans`}>
+                  {/* APP HEADER */}
+                  <div className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b ${borderCol} sticky top-0 z-10 shadow-sm`}>
                         <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white">
+                              <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold text-white shadow-sm">
                                     {customer.name?.[0]?.toUpperCase() || 'C'}
                               </div>
                               <div>
-                                    <p className="text-sm font-semibold">{customer.name}</p>
-                                    <p className="text-[10px] text-slate-400">{customer.phone}</p>
+                                    <p className="text-base font-bold">{customer.name}</p>
+                                    <p className="text-xs text-slate-500">{customer.phone}</p>
                               </div>
                         </div>
 
                         <button
                               onClick={() => setTheme(isDark ? 'light' : 'dark')}
-                              className="text-xl"
+                              className={`p-2 rounded-full ${isDark ? 'bg-slate-800' : 'bg-slate-100'} transition-colors`}
                         >
-                              {isDark ? '🌙' : '☀️'}
+                              {isDark ? '☀️' : '🌙'}
                         </button>
                   </div>
 
-                  <div className="px-4 py-3 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-300">
-                        Current Due: ₹{customer.currentDue}
+                  {/* DUE BANNER */}
+                  <div className="px-4 py-4 bg-amber-50 border-b border-amber-100 flex justify-between items-center">
+                        <div>
+                              <p className="text-[10px] text-amber-700 font-bold uppercase tracking-wider">Total Pending</p>
+                              <p className="text-2xl font-black text-amber-600">₹{customer.currentDue}</p>
+                        </div>
+                        <div className="bg-amber-100 px-3 py-1 rounded-full">
+                              <p className="text-[10px] text-amber-800 font-bold">UNPAID</p>
+                        </div>
                   </div>
 
-                  <main className={`flex-1 overflow-y-auto px-2 sm:px-4 py-3 space-y-1 ${chatBg}`}>
+                  {/* HISTORY LABEL */}
+                  <div className="px-4 py-2 bg-slate-50 border-b border-slate-200">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Transaction History</p>
+                  </div>
+
+                  {/* CHAT/LEDGER AREA */}
+                  <main className={`flex-1 overflow-y-auto px-4 py-6 space-y-4 ${chatBg}`}>
                         {[...(customer.ledger || [])].reverse().map((t, i) => {
                               const isCredit = t.type === 'credit';
                               return (
                                     <div key={i} className={`flex ${isCredit ? 'justify-end' : 'justify-start'}`}>
-                                          <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-xs shadow-sm ${isCredit ? bubbleCredit : bubblePayment}`}>
-                                                <div className="flex justify-between text-[10px] opacity-80">
-                                                      <span>{isCredit ? 'Udhaar' : 'Payment'}</span>
-                                                      <span>{t.date}</span>
+                                          <div className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${isCredit ? bubbleCredit : bubblePayment}`}>
+                                                <div className="flex justify-between items-center mb-1">
+                                                      <span className="text-[10px] font-black uppercase tracking-tighter opacity-70">
+                                                            {isCredit ? 'Udhaar (Taken)' : 'Payment (Given)'}
+                                                      </span>
+                                                      <span className="text-[9px] opacity-60 font-medium">
+                                                            {new Date(t.date || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                      </span>
                                                 </div>
-                                                <div className="mt-1">{t.note || '-'}</div>
-                                                <div className="mt-1 text-right font-bold">₹{t.amount}</div>
+                                                <div className="text-sm font-medium leading-relaxed">{t.note || 'No description'}</div>
+                                                <div className={`mt-2 text-xl font-black ${isCredit ? 'text-white' : 'text-slate-900'}`}>
+                                                      ₹{t.amount}
+                                                </div>
+                                                {t.balanceAfter !== undefined && (
+                                                      <div className="mt-1 pt-1 border-t border-black/5 text-[9px] font-bold opacity-50 text-right">
+                                                            Balance After: ₹{t.balanceAfter}
+                                                      </div>
+                                                )}
                                           </div>
                                     </div>
                               );
                         })}
+                        
+                        {(!customer.ledger || customer.ledger.length === 0) && (
+                              <div className="flex flex-col items-center justify-center h-40 text-slate-400">
+                                    <p className="text-sm">No transactions yet.</p>
+                              </div>
+                        )}
                   </main>
+
+                  {/* FOOTER */}
+                  <div className={`p-4 ${headerBg} border-t ${borderCol} text-center`}>
+                        <p className="text-[10px] text-slate-400 font-medium">This is a digital khata powered by InfraCredit</p>
+                  </div>
             </div>
       );
 }

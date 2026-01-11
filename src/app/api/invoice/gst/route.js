@@ -1,93 +1,47 @@
-import PDFDocument from 'pdfkit';
-import path from 'path';
-import fs from 'fs';
 import { NextResponse } from 'next/server';
 
 export async function POST(req) {
-      const body = await req.json();
-
-      const fontPath = path.join(
-            process.cwd(),
-            'public',
-            'fonts',
-            'Roboto-Regular.ttf'
-      );
-
-      const doc = new PDFDocument({ size: 'A4', margin: 40 });
-      const buffers = [];
-      doc.on('data', buffers.push.bind(buffers));
-
       try {
-            // Register custom font only if it exists; fall back to built-in font otherwise
-            if (fs.existsSync(fontPath)) {
-                  try {
-                        doc.registerFont('Roboto', fontPath);
-                        doc.font('Roboto');
-                  } catch (err) {
-                        console.warn('Failed to register custom font, falling back to default. Font path:', fontPath, err);
-                        // continue with default font
-                  }
-            } else {
-                  console.warn('Custom font not found at', fontPath, '— using PDF default font');
-            }
+            const body = await req.json();
 
-            doc.fontSize(18).fillColor('#0ea5a2').text('GST INVOICE', { align: 'center' });
-            doc.moveDown();
+            // Use pdf-lib directly because pdfkit is failing due to missing system fonts (AFM) on Vercel
+            const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
+            const pdfDoc = await PDFDocument.create();
+            const page = pdfDoc.addPage([595, 842]); // A4
+            const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+            const fontReg = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-            doc.fontSize(12).fillColor('#374151').text(`Customer: ${body.customer}`);
-            doc.text(`Invoice No: GST-${Date.now()}`);
-            doc.text(`Base Amount: ₹${body.amount}`);
+            page.drawText('GST INVOICE', { x: 230, y: 800, size: 18, font: fontBold, color: rgb(0.06, 0.65, 0.63) });
+            
+            page.drawText(`Customer: ${body.customer || 'N/A'}`, { x: 50, y: 760, size: 12, font: fontReg });
+            page.drawText(`Invoice No: GST-${Date.now()}`, { x: 50, y: 740, size: 12, font: fontReg });
+            page.drawText(`Date: ${new Date().toLocaleDateString()}`, { x: 50, y: 720, size: 12, font: fontReg });
 
-            const gst = Number(body.amount || 0) * 0.18;
-            doc.text(`GST (18%): ₹${gst.toFixed(2)}`);
-            doc.text(`Total Amount: ₹${(Number(body.amount || 0) + gst).toFixed(2)}`);
+            const baseAmount = Number(body.amount || 0);
+            const gst = baseAmount * 0.18;
+            const total = baseAmount + gst;
 
-            doc.end();
+            page.drawText('Description', { x: 50, y: 680, size: 12, font: fontBold });
+            page.drawText('Amount', { x: 450, y: 680, size: 12, font: fontBold });
+            
+            page.drawText('Base Amount', { x: 50, y: 660, size: 12, font: fontReg });
+            page.drawText(`Rs. ${baseAmount.toFixed(2)}`, { x: 450, y: 660, size: 12, font: fontReg });
 
-            await new Promise((resolve, reject) => {
-                  doc.on('end', resolve);
-                  doc.on('error', reject);
-            });
+            page.drawText('GST (18%)', { x: 50, y: 640, size: 12, font: fontReg });
+            page.drawText(`Rs. ${gst.toFixed(2)}`, { x: 450, y: 640, size: 12, font: fontReg });
 
-            const pdf = Buffer.concat(buffers);
+            page.drawText('Total Amount', { x: 50, y: 610, size: 14, font: fontBold });
+            page.drawText(`Rs. ${total.toFixed(2)}`, { x: 450, y: 610, size: 14, font: fontBold });
 
-            return new NextResponse(pdf, {
+            const pdfBytes = await pdfDoc.save();
+            return new NextResponse(Buffer.from(pdfBytes), {
                   headers: {
                         'Content-Type': 'application/pdf',
                         'Content-Disposition': `attachment; filename=gst-invoice-${Date.now()}.pdf`,
                   },
             });
       } catch (err) {
-            console.error('GST invoice generation error:', err);
-            // Fallback: if the error looks like missing AFM (Helvetica.afm) or other font issues, try pdf-lib
-            try {
-                  const msg = String(err?.message || '').toLowerCase();
-                  const looksLikeMissingAfm = err?.code === 'ENOENT' || msg.includes('helvetica.afm') || msg.includes('no such file') || msg.includes('afm');
-                  if (looksLikeMissingAfm) {
-                        console.warn('PDFKit AFM missing, using pdf-lib fallback for GST invoice (detected error):', err?.message || err);
-                        const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
-                        const pdfDoc = await PDFDocument.create();
-                        const page = pdfDoc.addPage([595, 842]); // A4
-                        const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
-                        const fontSize = 14;
-                        page.drawText('GST INVOICE', { x: 40, y: 780, size: 18, font: helvetica, color: rgb(0, 0.4, 0.4) });
-                        page.drawText(`Customer: ${body.customer}`, { x: 40, y: 750, size: fontSize, font: helvetica });
-                        page.drawText(`Invoice No: GST-${Date.now()}`, { x: 40, y: 730, size: fontSize, font: helvetica });
-                        const gst = Number(body.amount || 0) * 0.18;
-                        page.drawText(`Base Amount: ₹${body.amount}`, { x: 40, y: 700, size: fontSize, font: helvetica });
-                        page.drawText(`GST (18%): ₹${gst.toFixed(2)}`, { x: 40, y: 680, size: fontSize, font: helvetica });
-                        page.drawText(`Total: ₹${(Number(body.amount || 0) + gst).toFixed(2)}`, { x: 40, y: 660, size: fontSize, font: helvetica });
-
-                        const pdfBytes = await pdfDoc.save();
-                        return new NextResponse(Buffer.from(pdfBytes), { headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename=gst-invoice-${Date.now()}.pdf` } });
-                  }
-            } catch (fallbackErr) {
-                  console.error('Fallback pdf-lib invoice generation failed:', fallbackErr);
-            }
-            try {
-                  // ensure the document is closed to free resources
-                  doc.end();
-            } catch (_) { }
-            return NextResponse.json({ error: err.message || 'Failed to generate invoice PDF' }, { status: 500 });
+            console.error('GST Invoice PDF error:', err);
+            return NextResponse.json({ error: err.message }, { status: 500 });
       }
 }

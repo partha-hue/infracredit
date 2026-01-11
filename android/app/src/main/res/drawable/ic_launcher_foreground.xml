@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Modern "I" Logo for InfraCridet -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,25 h48 v10 h-19 v38 h19 v10 h-48 v-10 h19 v-38 h-19 z" />
+    <path
+        android:fillColor="#00C853"
+        android:pathData="M54,15 C32.5,15 15,32.5 15,54 C15,75.5 32.5,93 54,93 C75.5,93 93,75.5 93,54 C93,32.5 75.5,15 54,15 Z M54,88 C35.2,88 20,72.8 20,54 C20,35.2 35.2,20 54,20 C72.8,20 88,35.2 88,54 C88,72.8 72.8,88 54,88 Z" />
+</vector>

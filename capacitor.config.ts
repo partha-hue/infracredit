@@ -2,12 +2,10 @@ import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.infracridet.app',
-  appName: 'InfraCridet',
-
-  webDir: 'public',
-
+  appName: 'InfraCredit',
+  webDir: 'out',
   server: {
-    url: 'http://10.0.2.2:3000',
+    url: 'https://infracredit-seven.vercel.app/',
     cleartext: true
   }
 };
