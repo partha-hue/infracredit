@@ -4,10 +4,6 @@ import Customer from '@/models/Customer';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 
-// Backend version tag to help verify deployment logs
-const BACKEND_FIX_VERSION = 'fix/phone-normalization-2026-01-04-v2';
-
-/* ===== helpers ===== */
 function getToken(req) {
       const auth = req.headers.get('authorization');
       if (!auth || !auth.startsWith('Bearer ')) return null;
@@ -15,495 +11,144 @@ function getToken(req) {
 }
 
 function toObjectId(id) {
-      try {
-            return new mongoose.Types.ObjectId(id);
-      } catch {
-            return null;
-      }
+      try { return new mongoose.Types.ObjectId(id); } catch { return null; }
 }
 
 function normalizeIndianMobile(rawPhone) {
       if (!rawPhone) return null;
-
-      const original = String(rawPhone);
-      let digits = original.replace(/\D/g, '');
-
-      // Remove common country/trunk prefixes ONLY if doing so leaves >= 10 digits
-      if (digits.startsWith('0091') && digits.length - 4 >= 10) {
-            digits = digits.slice(4);
-      } else if (digits.startsWith('91') && digits.length - 2 >= 10) {
-            digits = digits.slice(2);
-      } else if (digits.startsWith('0') && digits.length - 1 >= 10) {
-            digits = digits.slice(1);
-      }
-
-      // Must be exactly 10 digits and start with 6-9 (Indian mobile rule)
-      if (!/^[6-9]\d{9}$/.test(digits)) {
-            // Fallback: accept any 10-digit number (keeps compatibility with older data)
-            if (digits.length === 10) {
-                  console.warn('Phone does not start with 6-9 but is 10 digits — accepting as fallback', { raw: original, normalized: digits });
-                  return digits;
-            }
-
-            console.error('Phone normalization failed', { raw: original, digits, reason: 'must be 10 digits and start with 6-9' });
-            return null;
-      }
-
-      console.log('Normalized phone', { raw: original, normalized: digits });
-      return digits;
+      let digits = String(rawPhone).replace(/\D/g, '');
+      if (digits.startsWith('0091') && digits.length - 4 >= 10) digits = digits.slice(4);
+      else if (digits.startsWith('91') && digits.length - 2 >= 10) digits = digits.slice(2);
+      else if (digits.startsWith('0') && digits.length - 1 >= 10) digits = digits.slice(1);
+      return digits.length === 10 ? digits : null;
 }
 
-/***** helper: robust phone extraction from request (params or path) *****/
 function extractPhoneFromReq(req, params) {
-      // prefer params.phone if present
       if (params && params.phone) return params.phone;
-
-      // otherwise, try to parse last path segment from request URL
       try {
             const url = new URL(req.url, 'http://localhost');
             const parts = url.pathname.split('/').filter(Boolean);
             return parts.length ? parts[parts.length - 1] : null;
-      } catch (e) {
-            return null;
-      }
+      } catch (e) { return null; }
 }
 
-/* ===== GET /api/customers/[phone] ===== */
 export async function GET(req, { params }) {
       try {
             await dbConnect();
-
-            if (!process.env.JWT_SECRET) {
-                  return NextResponse.json(
-                        { error: 'Server misconfiguration' },
-                        { status: 500 },
-                  );
-            }
-
             const token = getToken(req);
-            if (!token) {
-                  return NextResponse.json(
-                        { error: 'Unauthorized: token missing' },
-                        { status: 401 },
-                  );
-            }
+            if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
             let decoded;
-            try {
-                  decoded = jwt.verify(token, process.env.JWT_SECRET);
-            } catch {
-                  return NextResponse.json(
-                        { error: 'Invalid or expired token' },
-                        { status: 401 },
-                  );
-            }
+            try { decoded = jwt.verify(token, process.env.JWT_SECRET); } catch { return NextResponse.json({ error: 'Invalid token' }, { status: 401 }); }
 
             const ownerId = toObjectId(decoded.id);
-            if (!ownerId) {
-                  return NextResponse.json(
-                        { error: 'Invalid owner id in token' },
-                        { status: 400 },
-                  );
-            }
-
-            console.log('Backend version:', BACKEND_FIX_VERSION);
-
-            // get phone from params or fallback to parsing URL path
             const rawParam = extractPhoneFromReq(req, params);
-            if (!rawParam) {
-                  console.error('GET /api/customers/[phone]: missing param and no phone in path', { rawParam });
-                  return NextResponse.json(
-                        { error: 'Phone parameter is missing' },
-                        { status: 400 },
-                  );
-            }
+            let normalizedPhone = normalizeIndianMobile(rawParam) || rawParam;
 
-            let normalizedPhone = normalizeIndianMobile(rawParam);
-
-            // Server-side tolerant fallback: if normalize fails but raw param contains exactly 10 digits, accept it
-            if (!normalizedPhone) {
-                  const rawDigits = String(rawParam || '').replace(/\D/g, '');
-                  if (rawDigits.length === 10) {
-                        console.warn('Fallback acceptance of raw 10-digit phone in GET', { rawParam, digits: rawDigits });
-                        normalizedPhone = rawDigits;
-                  }
-            }
-
-            if (!normalizedPhone) {
-                  console.error('GET /api/customers/[phone]: invalid phone param', { rawParam });
-                  return NextResponse.json(
-                        {
-                              error:
-                                    'Invalid phone number format. Enter a valid 10-digit Indian mobile number (e.g., 9876543210).',
-                        },
-                        { status: 400 },
-                  );
-            }
-
-            let customer;
-            if (ownerId) {
-                  customer = await Customer.findOne({ ownerId, phone: normalizedPhone });
-            } else {
-                  // public lookup; choose the most recently created customer if multiple exist
-                  customer = await Customer.findOne({ phone: normalizedPhone }).sort({ createdAt: -1 });
-            }
-
-            if (!customer) {
-                  return NextResponse.json(
-                        { error: 'Customer not found' },
-                        { status: 404 },
-                  );
-            }
+            const customer = await Customer.findOne({ ownerId, phone: normalizedPhone, isDeleted: false });
+            if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
 
             return NextResponse.json(customer, { status: 200 });
       } catch (err) {
-            console.error('GET /api/customers/[phone] error:', err);
-            return NextResponse.json(
-                  { error: err.message || 'Server error' },
-                  { status: 500 },
-            );
+            return NextResponse.json({ error: err.message }, { status: 500 });
       }
 }
 
-/* ===== POST /api/customers/[phone] (add transaction) ===== */
 export async function POST(req, { params }) {
       try {
             await dbConnect();
-
-            if (!process.env.JWT_SECRET) {
-                  return NextResponse.json(
-                        { error: 'Server misconfiguration' },
-                        { status: 500 },
-                  );
-            }
-
             const token = getToken(req);
-            if (!token) {
-                  return NextResponse.json(
-                        { error: 'Unauthorized: token missing' },
-                        { status: 401 },
-                  );
-            }
+            if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
             let decoded;
-            try {
-                  decoded = jwt.verify(token, process.env.JWT_SECRET);
-            } catch {
-                  return NextResponse.json(
-                        { error: 'Invalid or expired token' },
-                        { status: 401 },
-                  );
-            }
+            try { decoded = jwt.verify(token, process.env.JWT_SECRET); } catch { return NextResponse.json({ error: 'Invalid token' }, { status: 401 }); }
 
             const ownerId = toObjectId(decoded.id);
-            if (!ownerId) {
-                  return NextResponse.json(
-                        { error: 'Invalid owner id in token' },
-                        { status: 400 },
-                  );
-            }
-
-            // 🔥 FIXED: Same normalization as GET
-            const rawParamPost = extractPhoneFromReq(req, params);
-            if (!rawParamPost) {
-                  console.error('POST /api/customers/[phone]: missing param and no phone in path', { rawParam: rawParamPost });
-                  return NextResponse.json(
-                        { error: 'Phone parameter is missing' },
-                        { status: 400 },
-                  );
-            }
-
-            let normalizedPhone = normalizeIndianMobile(rawParamPost);
-
-            // Server-side tolerant fallback: if normalize fails but raw param contains exactly 10 digits, accept it
-            if (!normalizedPhone) {
-                  const rawDigits = String(rawParamPost || '').replace(/\D/g, '');
-                  if (rawDigits.length === 10) {
-                        console.warn('Fallback acceptance of raw 10-digit phone in POST', { rawParam: rawParamPost, digits: rawDigits });
-                        normalizedPhone = rawDigits;
-                  }
-            }
-
-            if (!normalizedPhone) {
-                  console.error('POST /api/customers/[phone]: invalid phone param', { rawParam: rawParamPost });
-                  return NextResponse.json(
-                        {
-                              error:
-                                    'Invalid phone number format. Enter a valid 10-digit Indian mobile number (e.g., 9876543210).',
-                        },
-                        { status: 400 },
-                  );
-            }
+            const rawParam = extractPhoneFromReq(req, params);
+            let normalizedPhone = normalizeIndianMobile(rawParam) || rawParam;
 
             const { type, amount, note, date } = await req.json();
-            console.log(`POST /api/customers/${params.phone}:`, { type, amount, note, date });
+            const customer = await Customer.findOne({ ownerId, phone: normalizedPhone, isDeleted: false });
+            if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
 
-            if (!type || amount == null) {
-                  return NextResponse.json(
-                        { error: 'Type and amount required' },
-                        { status: 400 },
-                  );
-            }
-
-            const numericAmount = Number(amount);
-            if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-                  return NextResponse.json(
-                        { error: 'Amount must be a positive number' },
-                        { status: 400 },
-                  );
-            }
-
-            const customer = await Customer.findOne({ ownerId, phone: normalizedPhone });
-            if (!customer) {
-                  return NextResponse.json(
-                        { error: 'Customer not found' },
-                        { status: 404 },
-                  );
-            }
-
-            const signedAmount =
-                  type === 'credit' ? Math.abs(numericAmount) : -Math.abs(numericAmount);
-
+            const signedAmount = type === 'credit' ? Math.abs(amount) : -Math.abs(amount);
             const now = date ? new Date(date) : new Date();
             const newBalance = (customer.currentDue || 0) + signedAmount;
 
-            customer.ledger.push({
-                  type,
-                  amount: signedAmount,
-                  note: note || '',
-                  createdAt: now,
-                  balanceAfter: newBalance,
-            });
-
+            customer.ledger.push({ type, amount: signedAmount, note: note || '', createdAt: now, balanceAfter: newBalance });
             customer.currentDue = newBalance;
-
-            // backfill createdAt if missing on older entries
-            customer.ledger.forEach((entry) => {
-                  if (!entry.createdAt) {
-                        entry.createdAt =
-                              entry._id?.getTimestamp?.() || now;
-                  }
-            });
-
             await customer.save();
 
-            console.log(`Transaction saved for ${normalizedPhone}: ${type} ₹${numericAmount}`);
             return NextResponse.json(customer, { status: 200 });
       } catch (err) {
-            console.error('POST /api/customers/[phone] error:', err);
-            return NextResponse.json(
-                  { error: err.message || 'Server error' },
-                  { status: 500 },
-            );
+            return NextResponse.json({ error: err.message }, { status: 500 });
       }
 }
 
-/* ===== PATCH /api/customers/[phone] ===== */
 export async function PATCH(req, { params }) {
       try {
             await dbConnect();
-
-            if (!process.env.JWT_SECRET) {
-                  return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
-            }
-
             const token = getToken(req);
-            if (!token) {
-                  return NextResponse.json({ error: 'Unauthorized: token missing' }, { status: 401 });
-            }
+            if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
             let decoded;
-            try {
-                  decoded = jwt.verify(token, process.env.JWT_SECRET);
-            } catch {
-                  return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
-            }
+            try { decoded = jwt.verify(token, process.env.JWT_SECRET); } catch { return NextResponse.json({ error: 'Invalid token' }, { status: 401 }); }
 
             const ownerId = toObjectId(decoded.id);
-            if (!ownerId) {
-                  return NextResponse.json({ error: 'Invalid owner id in token' }, { status: 400 });
-            }
-
             const rawParam = extractPhoneFromReq(req, params);
-            if (!rawParam) {
-                  return NextResponse.json({ error: 'Phone parameter is missing' }, { status: 400 });
-            }
-
-            let normalizedPhone = normalizeIndianMobile(rawParam);
-            if (!normalizedPhone) {
-                  const rawDigits = String(rawParam || '').replace(/\D/g, '');
-                  if (rawDigits.length === 10) normalizedPhone = rawDigits;
-            }
-            if (!normalizedPhone) {
-                  return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 });
-            }
+            let normalizedPhone = normalizeIndianMobile(rawParam) || rawParam;
 
             const body = await req.json();
-
-            // If body contains name/newPhone, treat as metadata update
-            const { ledger, name, newPhone } = body;
-
-            if (name || newPhone) {
-                  const updates = {};
-                  if (name) updates.name = String(name).trim();
-
-                  if (newPhone) {
-                        const normalizedNew = normalizeIndianMobile(newPhone);
-                        if (!normalizedNew) {
-                              const rawDigits = String(newPhone).replace(/\D/g, '');
-                              if (rawDigits.length === 10) {
-                                    // tolerate raw 10-digit input
-                                    updates.phone = rawDigits;
-                              } else {
-                                    return NextResponse.json({ error: 'Invalid new phone number' }, { status: 400 });
-                              }
-                        } else {
-                              updates.phone = normalizedNew;
-                        }
-                  }
-
-                  try {
-                        const updated = await Customer.findOneAndUpdate(
-                              { ownerId, phone: normalizedPhone },
-                              { $set: updates },
-                              { new: true, runValidators: true, context: 'query' },
-                        );
-                        if (!updated) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
-                        return NextResponse.json(updated, { status: 200 });
-                  } catch (err) {
-                        if (err.code === 11000) {
-                              return NextResponse.json({ error: 'Customer with this phone already exists' }, { status: 409 });
-                        }
-                        throw err;
-                  }
-            }
-
-            // Otherwise, expect ledger replacement
-            if (!Array.isArray(ledger)) {
-                  return NextResponse.json({ error: 'Invalid ledger' }, { status: 400 });
-            }
-
-            // sanitize entries: ensure amount is Number and type is valid, compute balanceAfter
-            let running = 0;
-            const sanitized = ledger.map((entry) => {
-                  const type = entry.type === 'credit' ? 'credit' : 'payment';
-                  const amount = Number(entry.amount) || 0;
-                  const signed = type === 'credit' ? Math.abs(amount) : -Math.abs(amount);
-                  running += signed;
-                  return {
-                        ...entry,
-                        type,
-                        amount: signed,
-                        balanceAfter: running,
-                        createdAt: entry.createdAt ? new Date(entry.createdAt) : new Date(),
-                  };
-            });
-
-            const customer = await Customer.findOne({ ownerId, phone: normalizedPhone });
+            const customer = await Customer.findOne({ ownerId, phone: normalizedPhone, isDeleted: false });
             if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
 
-            customer.ledger = sanitized;
-            customer.currentDue = running;
+            if (body.name || body.newPhone) {
+                  if (body.name) customer.name = body.name.trim();
+                  if (body.newPhone) {
+                        const norm = normalizeIndianMobile(body.newPhone);
+                        if (!norm) return NextResponse.json({ error: 'Invalid new phone' }, { status: 400 });
+                        customer.phone = norm;
+                  }
+            } else if (Array.isArray(body.ledger)) {
+                  let running = 0;
+                  customer.ledger = body.ledger.map((e) => {
+                        const signed = e.type === 'credit' ? Math.abs(e.amount) : -Math.abs(e.amount);
+                        running += signed;
+                        return { ...e, amount: signed, balanceAfter: running, createdAt: e.createdAt || new Date() };
+                  });
+                  customer.currentDue = running;
+            }
 
             await customer.save();
-
             return NextResponse.json(customer, { status: 200 });
       } catch (err) {
-            console.error('PATCH /api/customers/[phone] error:', err);
-            return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+            return NextResponse.json({ error: err.message }, { status: 500 });
       }
 }
 
-/* ===== DELETE /api/customers/[phone] ===== */
 export async function DELETE(req, { params }) {
       try {
             await dbConnect();
-
-            if (!process.env.JWT_SECRET) {
-                  return NextResponse.json(
-                        { error: 'Server misconfiguration' },
-                        { status: 500 },
-                  );
-            }
-
             const token = getToken(req);
-            if (!token) {
-                  return NextResponse.json(
-                        { error: 'Unauthorized: token missing' },
-                        { status: 401 },
-                  );
-            }
+            if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
             let decoded;
-            try {
-                  decoded = jwt.verify(token, process.env.JWT_SECRET);
-            } catch {
-                  return NextResponse.json(
-                        { error: 'Invalid or expired token' },
-                        { status: 401 },
-                  );
-            }
+            try { decoded = jwt.verify(token, process.env.JWT_SECRET); } catch { return NextResponse.json({ error: 'Invalid token' }, { status: 401 }); }
 
             const ownerId = toObjectId(decoded.id);
-            if (!ownerId) {
-                  return NextResponse.json(
-                        { error: 'Invalid owner id in token' },
-                        { status: 400 },
-                  );
-            }
+            const rawParam = extractPhoneFromReq(req, params);
+            let normalizedPhone = normalizeIndianMobile(rawParam) || rawParam;
 
-            const rawParamDelete = extractPhoneFromReq(req, params);
-            if (!rawParamDelete) {
-                  console.error('DELETE /api/customers/[phone]: missing param and no phone in path', { rawParam: rawParamDelete });
-                  return NextResponse.json(
-                        { error: 'Phone parameter is missing' },
-                        { status: 400 },
-                  );
-            }
+            // Soft delete
+            const customer = await Customer.findOne({ ownerId, phone: normalizedPhone, isDeleted: false });
+            if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
 
-            let normalizedPhone = normalizeIndianMobile(rawParamDelete);
+            customer.isDeleted = true;
+            customer.deletedAt = new Date();
+            await customer.save();
 
-            // Server-side tolerant fallback: if normalize fails but raw param contains exactly 10 digits, accept it
-            if (!normalizedPhone) {
-                  const rawDigits = String(rawParamDelete || '').replace(/\D/g, '');
-                  if (rawDigits.length === 10) {
-                        console.warn('Fallback acceptance of raw 10-digit phone in DELETE', { rawParam: rawParamDelete, digits: rawDigits });
-                        normalizedPhone = rawDigits;
-                  }
-            }
-
-            if (!normalizedPhone) {
-                  console.error('DELETE /api/customers/[phone]: invalid phone param', { rawParam: rawParamDelete });
-                  return NextResponse.json(
-                        {
-                              error:
-                                    'Invalid phone number format. Enter a valid 10-digit Indian mobile number (e.g., 9876543210).',
-                        },
-                        { status: 400 },
-                  );
-            }
-
-            const deleted = await Customer.findOneAndDelete({
-                  ownerId,
-                  phone: normalizedPhone,
-            });
-
-            if (!deleted) {
-                  return NextResponse.json(
-                        { error: 'Customer not found' },
-                        { status: 404 },
-                  );
-            }
-
-            console.log(`Customer deleted: ${normalizedPhone}`);
-            return NextResponse.json({ message: 'Customer deleted' }, { status: 200 });
+            return NextResponse.json({ message: 'Customer soft-deleted' }, { status: 200 });
       } catch (err) {
-            console.error('DELETE /api/customers/[phone] error:', err);
-            return NextResponse.json(
-                  { error: err.message || 'Server error' },
-                  { status: 500 },
-            );
+            return NextResponse.json({ error: err.message }, { status: 500 });
       }
-
-
 }
