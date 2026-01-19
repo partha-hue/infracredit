@@ -198,8 +198,8 @@ export default function Home() {
       <div className="max-w-6xl mx-auto space-y-12">
         {/* HERO */}
         <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="text-center md:text-left space-y-2">
-            <h1 className="text-4xl font-bold">InfraCredit</h1>
+          <div className="text-center md:text-left space-y-4">
+            <img src="/logo.png" alt="InfraCredit Logo" className="h-16 mx-auto md:mx-0 object-contain" />
             <p className="text-slate-400">
               Digital Khata with GST &amp; Analytics
             </p>
@@ -216,9 +216,9 @@ export default function Home() {
                 }
                 router.push('/shops');
               }}
-              className="px-6 py-3 bg-emerald-500 rounded-lg"
+              className="px-6 py-3 bg-emerald-500 text-black font-bold rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
             >
-              {isAuthenticated ? 'Open Dashboard' : 'Dashboard'}
+              {isAuthenticated ? 'Open Dashboard' : 'Get Started'}
             </button>
 
             {!isAuthenticated && (
@@ -228,18 +228,9 @@ export default function Home() {
                     setAuthType('login');
                     setAuthModalOpen(true);
                   }}
-                  className="px-6 py-3 bg-slate-800 rounded-lg"
+                  className="px-6 py-3 bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors"
                 >
-                  Owner Login
-                </button>
-                <button
-                  onClick={() => {
-                    setAuthType('signup');
-                    setAuthModalOpen(true);
-                  }}
-                  className="px-6 py-3 bg-emerald-600 rounded-lg"
-                >
-                  Owner Signup
+                  Login
                 </button>
               </>
             )}
@@ -247,7 +238,7 @@ export default function Home() {
             {isAuthenticated && (
               <button
                 onClick={handleLogout}
-                className="px-6 py-3 bg-red-600 rounded-lg"
+                className="px-6 py-3 bg-rose-600/20 text-rose-500 border border-rose-500/30 rounded-xl font-bold"
               >
                 Logout
               </button>
@@ -255,62 +246,68 @@ export default function Home() {
           </div>
         </section>
 
-        {/* CHART – visible only when authenticated and data available */}
+        {/* CHART */}
         {isAuthenticated && !loading && ledger.length > 0 && (
-          <section ref={pdfRef} className="bg-slate-900 rounded-xl p-6">
+          <section ref={pdfRef} className="bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-xl">
+            <h3 className="text-sm font-bold text-slate-400 mb-6 uppercase tracking-widest">Business Growth</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={ledger}>
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="credit" fill="#f59e0b" />
-                <Bar dataKey="payment" fill="#10b981" />
+                <XAxis dataKey="month" stroke="#475569" fontSize={10} />
+                <YAxis stroke="#475569" fontSize={10} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff' }}
+                />
+                <Bar dataKey="credit" fill="#fbbf24" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="payment" fill="#10b981" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </section>
         )}
 
-        {/* ACTIONS */}
-        <section className="bg-slate-900 p-6 rounded-xl grid md:grid-cols-3 gap-4">
-          <button className="bg-emerald-500 py-3 rounded-lg">
-            📲 WhatsApp
-          </button>
-          <button
-            onClick={generatePDF}
-            className="bg-slate-800 py-3 rounded-lg"
-          >
-            📄 PDF
-          </button>
-          <button
-            onClick={generateGST}
-            className="bg-emerald-600 py-3 rounded-lg"
-          >
-            GST Invoice
-          </button>
+        {/* QUICK ACTIONS */}
+        <section className="grid md:grid-cols-3 gap-4">
+          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+             <h4 className="font-bold mb-2">WhatsApp Alerts</h4>
+             <p className="text-xs text-slate-500 mb-4">Send payment reminders to your customers instantly.</p>
+             <button className="w-full bg-emerald-500/10 text-emerald-500 py-3 rounded-xl font-bold text-sm">📲 Try Now</button>
+          </div>
+          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+             <h4 className="font-bold mb-2">PDF Statements</h4>
+             <p className="text-xs text-slate-500 mb-4">Generate professional ledger reports in seconds.</p>
+             <button onClick={generatePDF} className="w-full bg-slate-800 text-white py-3 rounded-xl font-bold text-sm">📄 View Sample</button>
+          </div>
+          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+             <h4 className="font-bold mb-2">GST Billing</h4>
+             <p className="text-xs text-slate-500 mb-4">Create tax-compliant invoices for your business.</p>
+             <button onClick={generateGST} className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm">🧾 Generate GST</button>
+          </div>
         </section>
       </div>
 
       {/* AUTH MODAL */}
       {authModalOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-slate-900 p-6 rounded-xl w-80 relative">
-            <h2 className="text-xl font-bold mb-4 capitalize">{authType}</h2>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl w-full max-w-sm relative shadow-2xl">
+            <div className="flex flex-col items-center mb-8">
+                <img src="/logo.png" alt="Logo" className="h-10 mb-2" />
+                <h2 className="text-xl font-black capitalize tracking-tight">{authType} to Account</h2>
+            </div>
 
-            <form onSubmit={handleAuthSubmit} className="space-y-3">
+            <form onSubmit={handleAuthSubmit} className="space-y-4">
               {authType === 'signup' && (
                 <>
                   <input
                     name="shopName"
                     placeholder="Shop Name"
                     onChange={handleAuthChange}
-                    className="w-full p-2 bg-slate-800 rounded"
+                    className="w-full p-4 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                     required
                   />
                   <input
                     name="ownerName"
                     placeholder="Owner Name"
                     onChange={handleAuthChange}
-                    className="w-full p-2 bg-slate-800 rounded"
+                    className="w-full p-4 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                     required
                   />
                 </>
@@ -318,9 +315,9 @@ export default function Home() {
               <input
                 name="email"
                 type="email"
-                placeholder="Email"
+                placeholder="Email Address"
                 onChange={handleAuthChange}
-                className="w-full p-2 bg-slate-800 rounded"
+                className="w-full p-4 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 required
               />
               <input
@@ -328,25 +325,33 @@ export default function Home() {
                 type="password"
                 placeholder="Password"
                 onChange={handleAuthChange}
-                className="w-full p-2 bg-slate-800 rounded"
+                className="w-full p-4 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 required
               />
 
-              <button className="w-full bg-emerald-500 py-2 rounded font-semibold">
-                {authType === 'login' ? 'Login' : 'Signup'}
+              <button className="w-full bg-emerald-500 py-4 rounded-xl font-black text-black shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
+                {authType === 'login' ? 'Login Now' : 'Create Account'}
               </button>
             </form>
 
-            <button
-              onClick={handleGoogleLogin}
-              className="w-full mt-3 bg-blue-600 py-2 rounded"
-            >
-              Continue with Google
-            </button>
+            <div className="mt-6 flex flex-col gap-3">
+                <button
+                onClick={handleGoogleLogin}
+                className="w-full bg-white text-black py-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2"
+                >
+                Continue with Google
+                </button>
+                <button 
+                   onClick={() => setAuthType(authType === 'login' ? 'signup' : 'login')}
+                   className="text-xs text-slate-500 hover:text-emerald-400 transition-colors"
+                >
+                   {authType === 'login' ? "Don't have an account? Sign up" : "Already have an account? Login"}
+                </button>
+            </div>
 
             <button
               onClick={() => setAuthModalOpen(false)}
-              className="absolute top-3 right-3"
+              className="absolute top-4 right-4 text-slate-500 hover:text-white"
             >
               ✕
             </button>

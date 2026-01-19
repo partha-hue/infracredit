@@ -3,11 +3,22 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Modern "I" Logo for InfraCridet -->
+    <!-- Bars -->
+    <path
+        android:fillColor="#76B900"
+        android:pathData="M32,62 L40,62 L40,48 L32,48 Z" />
+    <path
+        android:fillColor="#00A3E0"
+        android:pathData="M43,62 L51,62 L51,38 L43,38 Z" />
+    <path
+        android:fillColor="#005696"
+        android:pathData="M54,62 L62,62 L62,28 L54,28 Z" />
+    <!-- Swoosh -->
+    <path
+        android:fillColor="#00A3E0"
+        android:pathData="M25,52 C25,72 83,72 83,52 C83,47 75,42 70,40 L72,37 C80,40 88,47 88,52 C88,77 20,77 20,52 Z" />
+    <!-- Sparkle -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M30,25 h48 v10 h-19 v38 h19 v10 h-48 v-10 h19 v-38 h-19 z" />
-    <path
-        android:fillColor="#00C853"
-        android:pathData="M54,15 C32.5,15 15,32.5 15,54 C15,75.5 32.5,93 54,93 C75.5,93 93,75.5 93,54 C93,32.5 75.5,15 54,15 Z M54,88 C35.2,88 20,72.8 20,54 C20,35.2 35.2,20 54,20 C72.8,20 88,35.2 88,54 C88,72.8 72.8,88 54,88 Z" />
+        android:pathData="M66,28 L67,25 L70,24 L67,23 L66,20 L65,23 L62,24 L65,25 Z" />
 </vector>

@@ -9,6 +9,11 @@ export default function OwnerProfileForm({ initialOwner, deletedCustomers }) {
             phone: initialOwner.phone || '',
             avatarUrl: initialOwner.avatarUrl || '',
       });
+      const [passwords, setPasswords] = useState({
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: ''
+      });
       const [loading, setLoading] = useState(false);
       const [activeTab, setActiveTab] = useState('profile');
 
@@ -30,6 +35,38 @@ export default function OwnerProfileForm({ initialOwner, deletedCustomers }) {
                   if (data.token) localStorage.setItem('token', data.token);
                   notify('Profile updated successfully');
                   window.location.reload();
+            } catch (err) {
+                  notify(err.message);
+            } finally {
+                  setLoading(false);
+            }
+      };
+
+      const handlePasswordChange = async () => {
+            if (!passwords.currentPassword || !passwords.newPassword) {
+                  return notify('Please fill in all password fields');
+            }
+            if (passwords.newPassword !== passwords.confirmPassword) {
+                  return notify('New passwords do not match');
+            }
+
+            setLoading(true);
+            try {
+                  const res = await fetch('/api/owner/profile', {
+                        method: 'PATCH',
+                        headers: { 
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${localStorage.getItem('token')}` 
+                        },
+                        body: JSON.stringify({ 
+                              currentPassword: passwords.currentPassword,
+                              newPassword: passwords.newPassword 
+                        }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error || 'Password update failed');
+                  notify('Password updated successfully');
+                  setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
             } catch (err) {
                   notify(err.message);
             } finally {
@@ -62,16 +99,22 @@ export default function OwnerProfileForm({ initialOwner, deletedCustomers }) {
       return (
             <div>
                   {/* TABS */}
-                  <div className="flex border-b border-slate-200 mb-6">
+                  <div className="flex border-b border-slate-200 mb-6 overflow-x-auto no-scrollbar">
                         <button 
                               onClick={() => setActiveTab('profile')}
-                              className={`px-4 py-2 text-sm font-bold ${activeTab === 'profile' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-slate-400'}`}
+                              className={`px-4 py-2 text-sm font-bold whitespace-nowrap ${activeTab === 'profile' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-slate-400'}`}
                         >
                               Basic Info
                         </button>
                         <button 
+                              onClick={() => setActiveTab('security')}
+                              className={`px-4 py-2 text-sm font-bold whitespace-nowrap ${activeTab === 'security' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-slate-400'}`}
+                        >
+                              Security
+                        </button>
+                        <button 
                               onClick={() => setActiveTab('restore')}
-                              className={`px-4 py-2 text-sm font-bold flex items-center gap-2 ${activeTab === 'restore' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-slate-400'}`}
+                              className={`px-4 py-2 text-sm font-bold flex items-center gap-2 whitespace-nowrap ${activeTab === 'restore' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-slate-400'}`}
                         >
                               Restore Customers
                               {deletedCustomers?.length > 0 && (
@@ -82,7 +125,7 @@ export default function OwnerProfileForm({ initialOwner, deletedCustomers }) {
                         </button>
                   </div>
 
-                  {activeTab === 'profile' ? (
+                  {activeTab === 'profile' && (
                         <div className="space-y-5">
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
@@ -131,7 +174,51 @@ export default function OwnerProfileForm({ initialOwner, deletedCustomers }) {
                                     </button>
                               </div>
                         </div>
-                  ) : (
+                  )}
+
+                  {activeTab === 'security' && (
+                        <div className="space-y-5">
+                              <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Password</label>
+                                    <input 
+                                          type="password"
+                                          className="w-full rounded-xl border border-slate-200 p-3 mt-1 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all" 
+                                          value={passwords.currentPassword} 
+                                          onChange={(e) => setPasswords((p) => ({ ...p, currentPassword: e.target.value }))} 
+                                    />
+                              </div>
+                              <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">New Password</label>
+                                    <input 
+                                          type="password"
+                                          className="w-full rounded-xl border border-slate-200 p-3 mt-1 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all" 
+                                          value={passwords.newPassword} 
+                                          onChange={(e) => setPasswords((p) => ({ ...p, newPassword: e.target.value }))} 
+                                    />
+                              </div>
+                              <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Confirm New Password</label>
+                                    <input 
+                                          type="password"
+                                          className="w-full rounded-xl border border-slate-200 p-3 mt-1 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all" 
+                                          value={passwords.confirmPassword} 
+                                          onChange={(e) => setPasswords((p) => ({ ...p, confirmPassword: e.target.value }))} 
+                                    />
+                              </div>
+
+                              <div className="pt-4 flex justify-end">
+                                    <button 
+                                          onClick={handlePasswordChange} 
+                                          disabled={loading}
+                                          className="bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-2xl text-sm font-black shadow-lg active:scale-95 transition-all"
+                                    >
+                                          {loading ? 'Updating...' : 'Change Password'}
+                                    </button>
+                              </div>
+                        </div>
+                  )}
+
+                  {activeTab === 'restore' && (
                         <div className="space-y-3">
                               {deletedCustomers?.length === 0 ? (
                                     <div className="text-center py-10">
