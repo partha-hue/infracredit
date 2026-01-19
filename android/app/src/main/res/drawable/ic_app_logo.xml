@@ -1,5 +1,28 @@
-<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@drawable/ic_launcher_background" />
-    <foreground android:drawable="@drawable/ic_launcher_foreground" />
-</adaptive-icon>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Background -->
+    <path
+        android:fillColor="#0D1117"
+        android:pathData="M0,0h108v108h-108z" />
+    <!-- Bars -->
+    <path
+        android:fillColor="#76B900"
+        android:pathData="M32,62 L40,62 L40,48 L32,48 Z" />
+    <path
+        android:fillColor="#00A3E0"
+        android:pathData="M43,62 L51,62 L51,38 L43,38 Z" />
+    <path
+        android:fillColor="#005696"
+        android:pathData="M54,62 L62,62 L62,28 L54,28 Z" />
+    <!-- Swoosh -->
+    <path
+        android:fillColor="#00A3E0"
+        android:pathData="M25,52 C25,72 83,72 83,52 C83,47 75,42 70,40 L72,37 C80,40 88,47 88,52 C88,77 20,77 20,52 Z" />
+    <!-- Sparkle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M66,28 L67,25 L70,24 L67,23 L66,20 L65,23 L62,24 L65,25 Z" />
+</vector>
