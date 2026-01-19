@@ -18,7 +18,13 @@ const formatDateTime = (value) => {
       if (!value) return 'N/A';
       const d = new Date(value);
       if (isNaN(d.getTime())) return 'N/A';
-      return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleString('en-IN', { 
+            day: '2-digit', 
+            month: 'short', 
+            year: '2-digit', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+      });
 };
 
 const API = {
@@ -134,10 +140,18 @@ export default function OwnerDashboard() {
             return () => window.removeEventListener('resize', handleResize);
       }, []);
 
-      // Close dropdown when clicking anywhere
+      // Improved unselect logic: Close dropdown and unselect edit mode when clicking elsewhere
       useEffect(() => {
-            const handleGlobalClick = () => setActionMenuFor(null);
-            if (actionMenuFor) window.addEventListener('click', handleGlobalClick);
+            const handleGlobalClick = (e) => {
+                  if (actionMenuFor) setActionMenuFor(null);
+                  // If clicking on chat area background (not on a bubble or input bar)
+                  if (e.target.closest('.chat-background') && !e.target.closest('.chat-bubble') && !e.target.closest('.action-bar')) {
+                        setEditingIndex(null);
+                        setTxnAmount('');
+                        setTxnNote('');
+                  }
+            };
+            window.addEventListener('click', handleGlobalClick);
             return () => window.removeEventListener('click', handleGlobalClick);
       }, [actionMenuFor]);
 
@@ -185,6 +199,20 @@ export default function OwnerDashboard() {
                   setCustomers(prev => prev.map(c => c.phone === updated.phone ? updated : c));
                   setTxnAmount(''); setTxnNote('');
             } catch (err) { alert(err.message); }
+      };
+
+      // Toggle edit mode by clicking chat bubble
+      const handleBubbleClick = (idx, t) => {
+            if (editingIndex === idx) {
+                  setEditingIndex(null);
+                  setTxnAmount('');
+                  setTxnNote('');
+            } else {
+                  setEditingIndex(idx);
+                  setTxnType(t.type);
+                  setTxnAmount(Math.abs(t.amount));
+                  setTxnNote(t.note);
+            }
       };
 
       const sendWhatsAppReminder = () => {
@@ -240,7 +268,9 @@ export default function OwnerDashboard() {
                   {(showListOnMobile || !isMobileView) && (
                         <aside className={`w-full md:w-80 border-r flex flex-col h-full shadow-sm transition-colors ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'}`}>
                               <div className={`p-4 border-b flex items-center justify-between sticky top-0 z-10 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-100'}`}>
-                                    <img src="/logo.png" className="h-8 object-contain" alt="Logo" />
+                                    <div className="flex items-center gap-2">
+                                          <img src="/logo.png" className="h-8 w-auto object-contain" alt="Logo" />
+                                    </div>
                                     <div className="flex items-center gap-3">
                                           <button onClick={() => router.push('/profile')} className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-black text-white shadow-md overflow-hidden relative border border-emerald-500">
                                                 {ownerProfile?.avatarUrl ? <img src={ownerProfile.avatarUrl} className="w-full h-full object-cover" /> : ownerProfile?.ownerName?.[0]?.toUpperCase()}
@@ -258,7 +288,7 @@ export default function OwnerDashboard() {
                                     {/* Whatsapp style filters */}
                                     <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                                           {['all', 'due', 'cleared'].map(f => (
-                                                <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 rounded-full text-[10px] font-black capitalize whitespace-nowrap border transition-all ${filter === f ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-500/20' : (isDark ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-200')}`}>
+                                                <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 rounded-full text-[10px] font-black capitalize whitespace-nowrap border transition-all ${filter === f ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' : (isDark ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-200')}`}>
                                                       {f === 'due' ? 'Credit Due' : f}
                                                 </button>
                                           ))}
@@ -290,8 +320,8 @@ export default function OwnerDashboard() {
                                                       <button onClick={(e) => { e.stopPropagation(); setActionMenuFor(actionMenuFor === c.phone ? null : c.phone); }} className="p-2 opacity-40 hover:opacity-100">⋮</button>
                                                       {actionMenuFor === c.phone && (
                                                             <div className={`absolute right-0 top-10 shadow-2xl border rounded-2xl z-20 w-32 py-2 animate-scale-up ${isDark ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-900'}`}>
-                                                                  <button onClick={() => { setEditingPhone(c.phone); setNewName(c.name); setNewPhone(c.phone); setActionMenuFor(null); }} className={`w-full text-left px-4 py-2 text-xs font-bold ${isDark ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>Edit</button>
-                                                                  <button onClick={() => { handleDeleteCustomer(c.phone); setActionMenuFor(null); }} className={`w-full text-left px-4 py-2 text-xs font-bold text-rose-500 ${isDark ? 'hover:bg-rose-900/20' : 'hover:bg-rose-50'}`}>Delete</button>
+                                                                  <button onClick={(e) => { e.stopPropagation(); setEditingPhone(c.phone); setNewName(c.name); setNewPhone(c.phone); setActionMenuFor(null); }} className={`w-full text-left px-4 py-2 text-xs font-bold ${isDark ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>Edit</button>
+                                                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteCustomer(c.phone); setActionMenuFor(null); }} className={`w-full text-left px-4 py-2 text-xs font-bold text-rose-500 ${isDark ? 'hover:bg-rose-900/20' : 'hover:bg-rose-50'}`}>Delete</button>
                                                             </div>
                                                       )}
                                                 </div>
@@ -311,12 +341,23 @@ export default function OwnerDashboard() {
                                           <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-black text-white shadow-md">{selected?.name?.[0]?.toUpperCase()}</div>
                                           <div>
                                                 <p className={`text-base font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>{selected?.name}</p>
-                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">₹{selected?.currentDue} Pending</p>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{selected?.phone}</p>
                                           </div>
                                     </div>
                                     <div className="flex gap-2">
                                           <button onClick={sendWhatsAppReminder} className={`p-2.5 rounded-full shadow-md active:scale-90 transition-all ${isDark ? 'bg-slate-800 text-emerald-400' : 'bg-emerald-100 text-emerald-700'}`}><WhatsAppIcon /></button>
                                           <button onClick={() => setPdfModalOpen(true)} className={`p-2.5 rounded-full shadow-md active:scale-90 transition-all ${isDark ? 'bg-slate-800 text-sky-400' : 'bg-sky-100 text-sky-700'}`}><FileIcon /></button>
+                                    </div>
+                              </div>
+
+                              {/* BANNER STYLE PENDING */}
+                              <div className="bg-amber-500/10 border-b border-amber-500/20 py-3 px-4 flex justify-between items-center animate-slide-down">
+                                    <div className="flex flex-col">
+                                          <span className="text-[9px] font-black uppercase tracking-widest text-amber-600/70">Total Pending Balance</span>
+                                          <span className="text-2xl font-black text-amber-600 tracking-tight">₹{selected?.currentDue}</span>
+                                    </div>
+                                    <div className="bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/30">
+                                          <span className="text-[10px] font-black text-amber-700 uppercase">Awaiting Payment</span>
                                     </div>
                               </div>
 
@@ -328,13 +369,14 @@ export default function OwnerDashboard() {
                               </div>
 
                               {/* Ledger */}
-                              <div className={`flex-1 overflow-y-auto p-4 space-y-4 ${isDark ? 'bg-slate-900' : 'bg-slate-100/30'}`}>
+                              <div className={`flex-1 overflow-y-auto p-4 space-y-4 chat-background ${isDark ? 'bg-slate-900' : 'bg-slate-100/30'}`}>
                                     {filteredLedger.slice().reverse().map((t, i) => {
                                           const originalIdx = selected.ledger.indexOf(t);
+                                          const isSelected = editingIndex === originalIdx;
                                           return (
                                                 <div key={i} className={`flex ${t.type === 'credit' ? 'justify-end' : 'justify-start'}`}>
-                                                      <button onClick={() => { setEditingIndex(originalIdx); setTxnType(t.type); setTxnAmount(Math.abs(t.amount)); setTxnNote(t.note); }} 
-                                                            className={`p-4 rounded-[24px] text-left shadow-md max-w-[85%] border transition-all active:scale-95 ${t.type === 'credit' ? (isDark ? 'bg-emerald-700 text-white border-emerald-600' : 'bg-emerald-600 text-white border-emerald-500') : (isDark ? 'bg-slate-800 text-slate-100 border-slate-700' : 'bg-white text-slate-900 border-slate-100')}`}>
+                                                      <button onClick={(e) => { e.stopPropagation(); handleBubbleClick(originalIdx, t); }} 
+                                                            className={`chat-bubble p-4 rounded-[24px] text-left shadow-md max-w-[85%] border transition-all active:scale-95 ${isSelected ? 'ring-4 ring-emerald-500/30 scale-[1.02]' : ''} ${t.type === 'credit' ? (isDark ? 'bg-emerald-700 text-white border-emerald-600' : 'bg-emerald-600 text-white border-emerald-500') : (isDark ? 'bg-slate-800 text-slate-100 border-slate-700' : 'bg-white text-slate-900 border-slate-100')}`}>
                                                             <div className="flex justify-between items-center mb-2 gap-6">
                                                                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70">{t.type === 'credit' ? 'Udhaar' : 'Payment'}</span>
                                                                   <span className="text-[8px] opacity-60 font-bold">{formatDateTime(t.createdAt || t.date)}</span>
@@ -351,7 +393,7 @@ export default function OwnerDashboard() {
                               </div>
 
                               {/* Bottom Action Bar */}
-                              <div className={`p-4 border-t shadow-2xl space-y-3 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-100'}`}>
+                              <div className={`action-bar p-4 border-t shadow-2xl space-y-3 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-100'}`}>
                                     <div className="flex gap-3">
                                           <button onClick={() => setTxnType('credit')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black transition-all ${txnType === 'credit' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20' : (isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400')}`}>Udhaar</button>
                                           <button onClick={() => setTxnType('payment')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black transition-all ${txnType === 'payment' ? 'bg-slate-900 text-white shadow-lg' : (isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400')}`}>Payment</button>
@@ -362,9 +404,6 @@ export default function OwnerDashboard() {
                                           <button onClick={handleSaveTxn} className="bg-emerald-600 text-white font-black text-xs px-6 py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
                                                 {editingIndex !== null ? 'Update' : 'Save'}
                                           </button>
-                                          {editingIndex !== null && (
-                                                <button onClick={() => { setEditingIndex(null); setTxnAmount(''); setTxnNote(''); }} className="bg-rose-500 text-white p-3.5 rounded-xl font-bold shadow-lg active:scale-95">✕</button>
-                                          )}
                                     </div>
                               </div>
                         </main>
@@ -403,7 +442,12 @@ export default function OwnerDashboard() {
                               from { opacity: 0; transform: scale(0.9); }
                               to { opacity: 1; transform: scale(1); }
                         }
+                        @keyframes slide-down {
+                              from { opacity: 0; transform: translateY(-20px); }
+                              to { opacity: 1; transform: translateY(0); }
+                        }
                         .animate-scale-up { animation: scale-up 0.2s ease-out; }
+                        .animate-slide-down { animation: slide-down 0.3s ease-out; }
                         .no-scrollbar::-webkit-scrollbar { display: none; }
                   `}</style>
             </div>
