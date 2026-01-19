@@ -13,11 +13,7 @@ function getToken(req) {
 }
 
 function toObjectId(id) {
-      try {
-            return new mongoose.Types.ObjectId(id);
-      } catch {
-            return null;
-      }
+      try { return new mongoose.Types.ObjectId(id); } catch { return null; }
 }
 
 export async function GET(req) {
@@ -34,15 +30,14 @@ export async function GET(req) {
             }
 
             const ownerId = toObjectId(decoded.id);
-            const owner = await Owner.findById(ownerId).select('ownerName shopName email phone avatarUrl provider createdAt updatedAt');
+            const owner = await Owner.findById(ownerId).select('-passwordHash');
             if (!owner) return NextResponse.json({ error: 'Owner not found' }, { status: 404 });
 
-            // Fetch deleted customers for the restore feature
+            // Fetch soft-deleted customers for restore management
             const deletedCustomers = await Customer.find({ ownerId, isDeleted: true }).sort({ deletedAt: -1 });
 
             return NextResponse.json({ owner, deletedCustomers }, { status: 200 });
       } catch (err) {
-            console.error('GET /api/owner/profile error:', err);
             return NextResponse.json({ error: err.message }, { status: 500 });
       }
 }
@@ -63,14 +58,14 @@ export async function PATCH(req) {
             const ownerId = toObjectId(decoded.id);
             const body = await req.json();
 
-            // Handle Restore Customer
+            // Handle Restore Customer Feature
             if (body.restoreCustomerId) {
                   const customer = await Customer.findOne({ _id: body.restoreCustomerId, ownerId });
-                  if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+                  if (!customer) return NextResponse.json({ error: 'Customer record not found' }, { status: 404 });
                   
-                  // Check if phone already exists in active customers
-                  const existingActive = await Customer.findOne({ ownerId, phone: customer.phone, isDeleted: false });
-                  if (existingActive) return NextResponse.json({ error: 'An active customer with this phone number already exists.' }, { status: 400 });
+                  // Check for phone conflicts in active records
+                  const conflict = await Customer.findOne({ ownerId, phone: customer.phone, isDeleted: false });
+                  if (conflict) return NextResponse.json({ error: `An active customer with phone ${customer.phone} already exists.` }, { status: 400 });
 
                   customer.isDeleted = false;
                   customer.deletedAt = undefined;
@@ -78,21 +73,57 @@ export async function PATCH(req) {
                   return NextResponse.json({ message: 'Customer restored successfully' });
             }
 
+            // Secure profile updates
             const updates = {};
-            if (body.ownerName) updates.ownerName = String(body.ownerName).trim();
-            if (body.shopName) updates.shopName = String(body.shopName).trim();
-            if (body.phone) updates.phone = String(body.phone).replace(/\D/g, '');
-            if (body.avatarUrl) updates.avatarUrl = String(body.avatarUrl).trim();
-            if (body.email) updates.email = String(body.email).trim().toLowerCase();
+            const allowedFields = ['ownerName', 'shopName', 'phone', 'avatarUrl', 'email'];
+            
+            allowedFields.forEach(field => {
+                  if (body[field] !== undefined) {
+                        let val = String(body[field]).trim();
+                        if (field === 'phone') val = val.replace(/\D/g, '');
+                        if (field === 'email') val = val.toLowerCase();
+                        if (val) updates[field] = val;
+                  }
+            });
 
-            if (!Object.keys(updates).length) return NextResponse.json({ error: 'No updates provided' }, { status: 400 });
+            if (Object.keys(updates).length === 0) {
+                  return NextResponse.json({ error: 'No valid data provided for update' }, { status: 400 });
+            }
 
-            const updated = await Owner.findOneAndUpdate({ _id: ownerId }, { $set: updates }, { new: true });
-            const newToken = signToken(updated);
-            const res = NextResponse.json({ owner: updated, token: newToken });
-            res.cookies.set('token', newToken, { httpOnly: true, path: '/', sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 7 * 24 * 60 * 60 });
+            // Check if email is being changed and if it's already taken
+            if (updates.email) {
+                  const existingEmail = await Owner.findOne({ email: updates.email, _id: { $ne: ownerId } });
+                  if (existingEmail) return NextResponse.json({ error: 'Email address is already in use by another account' }, { status: 409 });
+            }
+
+            const updatedOwner = await Owner.findOneAndUpdate(
+                  { _id: ownerId },
+                  { $set: updates },
+                  { new: true, runValidators: true }
+            ).select('-passwordHash');
+
+            if (!updatedOwner) return NextResponse.json({ error: 'Owner account not found' }, { status: 404 });
+
+            // Re-sign token with updated info for the client
+            const newToken = signToken(updatedOwner);
+
+            const res = NextResponse.json({ 
+                  owner: updatedOwner, 
+                  token: newToken, 
+                  message: 'Profile secured and updated successfully' 
+            });
+
+            res.cookies.set('token', newToken, {
+                  httpOnly: true,
+                  path: '/',
+                  sameSite: 'lax',
+                  secure: process.env.NODE_ENV === 'production',
+                  maxAge: 7 * 24 * 60 * 60,
+            });
+
             return res;
       } catch (err) {
+            console.error('Profile update error:', err);
             return NextResponse.json({ error: err.message }, { status: 500 });
       }
 }
