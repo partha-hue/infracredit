@@ -15,8 +15,9 @@ import { useRouter } from 'next/navigation';
 const getToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
 const formatDateTime = (value) => {
-      if (!value) return '';
+      if (!value) return 'Invalid Date';
       const d = new Date(value);
+      if (isNaN(d.getTime())) return 'Invalid Date';
       return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 };
 
@@ -115,13 +116,12 @@ export default function OwnerDashboard() {
       const [txnNote, setTxnNote] = useState('');
 
       const [search, setSearch] = useState('');
+      const [chatSearch, setChatSearch] = useState('');
       const [filter, setFilter] = useState('all');
       const [theme, setTheme] = useState('light');
       const [toasts, setToasts] = useState([]);
 
       const [actionMenuFor, setActionMenuFor] = useState(null);
-      const [selectedTxnIds, setSelectedTxnIds] = useState(new Set());
-      const [chatMenuOpen, setChatMenuOpen] = useState(false);
       const [editingIndex, setEditingIndex] = useState(null);
 
       const [isMobileView, setIsMobileView] = useState(true);
@@ -199,7 +199,7 @@ export default function OwnerDashboard() {
                   if (editingIndex !== null) {
                         const newLedger = [...selected.ledger];
                         const signed = txnType === 'credit' ? Math.abs(txnAmount) : -Math.abs(txnAmount);
-                        newLedger[editingIndex] = { ...newLedger[editingIndex], type: txnType, amount: signed, note: txnNote };
+                        newLedger[editingIndex] = { ...newLedger[editingIndex], type: txnType, amount: signed, note: txnNote, createdAt: new Date().toISOString() };
                         updated = await API.updateLedger(selected.phone, newLedger);
                         setEditingIndex(null);
                         notify('Entry Updated');
@@ -238,6 +238,17 @@ export default function OwnerDashboard() {
             return customers.filter(c => (c.name?.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search)) && (filter === 'all' || (filter === 'due' ? c.currentDue > 0 : c.currentDue === 0)));
       }, [customers, search, filter]);
 
+      const filteredLedger = useMemo(() => {
+            if (!selected || !selected.ledger) return [];
+            const term = chatSearch.trim().toLowerCase();
+            return selected.ledger.filter(t => {
+                  const note = t.note?.toLowerCase() || '';
+                  const amount = String(t.amount).toLowerCase();
+                  const dateStr = formatDateTime(t.createdAt || t.date).toLowerCase();
+                  return note.includes(term) || amount.includes(term) || dateStr.includes(term);
+            });
+      }, [selected, chatSearch]);
+
       const isDark = theme === 'dark';
 
       if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50">Loading...</div>;
@@ -248,8 +259,8 @@ export default function OwnerDashboard() {
 
                   {/* CUSTOMER LIST SIDEBAR */}
                   {(showListOnMobile || !isMobileView) && (
-                        <aside className="w-full md:w-80 bg-white border-r border-slate-200 flex flex-col h-full shadow-sm">
-                              <div className="p-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
+                        <aside className={`w-full md:w-80 border-r flex flex-col h-full shadow-sm ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'}`}>
+                              <div className={`p-4 border-b flex items-center justify-between sticky top-0 z-10 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-100'}`}>
                                     <img src="/logo.png" className="h-8 object-contain" alt="Logo" />
                                     <div className="flex items-center gap-3">
                                           <button onClick={() => router.push('/profile')} className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-black text-white shadow-md overflow-hidden">
@@ -260,25 +271,34 @@ export default function OwnerDashboard() {
                               </div>
 
                               <div className="p-3 space-y-2">
-                                    <div className="bg-slate-100 rounded-xl px-3 py-2 flex items-center gap-2">
+                                    <div className={`rounded-xl px-3 py-2 flex items-center gap-2 ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
                                           <span className="opacity-40">🔍</span>
                                           <input placeholder="Search name/phone" className="bg-transparent text-xs outline-none flex-1" value={search} onChange={e => setSearch(e.target.value)} />
                                     </div>
-                                    <div className="bg-emerald-50 rounded-2xl p-3 border border-emerald-100 space-y-2 shadow-sm">
-                                          <input placeholder="Customer Name" className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-emerald-100 outline-none" value={newName} onChange={e => setNewName(e.target.value)} />
-                                          <input placeholder="Phone (10 digits)" className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-emerald-100 outline-none" value={newPhone} onChange={e => setNewPhone(e.target.value.replace(/\D/g,''))} />
+                                    {/* Whatsapp style filters */}
+                                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                                          {['all', 'due', 'cleared'].map(f => (
+                                                <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 rounded-full text-[10px] font-black capitalize whitespace-nowrap border transition-all ${filter === f ? 'bg-emerald-600 border-emerald-600 text-white' : (isDark ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-500')}`}>
+                                                      {f === 'due' ? 'Credit Due' : f}
+                                                </button>
+                                          ))}
+                                    </div>
+
+                                    <div className={`rounded-2xl p-3 border space-y-2 shadow-sm ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-emerald-50 border-emerald-100'}`}>
+                                          <input placeholder="Customer Name" className={`w-full rounded-xl px-3 py-2 text-xs border outline-none ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-emerald-100'}`} value={newName} onChange={e => setNewName(e.target.value)} />
+                                          <input placeholder="Phone (10 digits)" className={`w-full rounded-xl px-3 py-2 text-xs border outline-none ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-emerald-100'}`} value={newPhone} onChange={e => setNewPhone(e.target.value.replace(/\D/g,''))} />
                                           <div className="flex gap-2">
                                                 <button onClick={handleAddOrEditCustomer} className="flex-1 bg-emerald-600 py-2 rounded-xl text-xs font-black text-white shadow-md active:scale-95 transition-all">
                                                       {editingPhone ? 'Save Update' : '+ Add Customer'}
                                                 </button>
-                                                {editingPhone && <button onClick={() => { setEditingPhone(null); setNewName(''); setNewPhone(''); }} className="bg-slate-200 px-3 py-2 rounded-xl text-[10px] font-bold">✕</button>}
+                                                {editingPhone && <button onClick={() => { setEditingPhone(null); setNewName(''); setNewPhone(''); }} className="bg-slate-200 px-3 py-2 rounded-xl text-[10px] font-bold text-slate-700">✕</button>}
                                           </div>
                                     </div>
                               </div>
 
                               <div className="flex-1 overflow-y-auto">
                                     {filteredCustomers.map(c => (
-                                          <div key={c.phone} className={`group flex items-center px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors ${selected?.phone === c.phone ? 'bg-emerald-50 border-l-4 border-l-emerald-600' : ''}`}>
+                                          <div key={c.phone} className={`group flex items-center px-4 py-3 border-b transition-colors ${isDark ? 'border-slate-800 hover:bg-slate-900' : 'border-slate-50 hover:bg-slate-50'} ${selected?.phone === c.phone ? (isDark ? 'bg-emerald-900/20 border-l-4 border-l-emerald-600' : 'bg-emerald-50 border-l-4 border-l-emerald-600') : ''}`}>
                                                 <button onClick={() => { setSelected(c); if(isMobileView) setShowListOnMobile(false); }} className="flex-1 text-left min-w-0">
                                                       <div className="flex justify-between">
                                                             <p className="text-sm font-bold truncate pr-2">{c.name}</p>
@@ -289,9 +309,9 @@ export default function OwnerDashboard() {
                                                 <div className="relative ml-2">
                                                       <button onClick={() => setActionMenuFor(actionMenuFor === c.phone ? null : c.phone)} className="p-1 opacity-40 hover:opacity-100">⋮</button>
                                                       {actionMenuFor === c.phone && (
-                                                            <div className="absolute right-0 top-6 bg-white shadow-2xl border border-slate-100 rounded-xl z-20 w-28 py-1">
-                                                                  <button onClick={() => { setEditingPhone(c.phone); setNewName(c.name); setNewPhone(c.phone); setActionMenuFor(null); }} className="w-full text-left px-4 py-2 text-[10px] font-bold hover:bg-slate-50">Edit</button>
-                                                                  <button onClick={() => { handleDeleteCustomer(c.phone); setActionMenuFor(null); }} className="w-full text-left px-4 py-2 text-[10px] font-bold text-rose-500 hover:bg-rose-50">Delete</button>
+                                                            <div className={`absolute right-0 top-6 shadow-2xl border rounded-xl z-20 w-28 py-1 ${isDark ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-900'}`}>
+                                                                  <button onClick={() => { setEditingPhone(c.phone); setNewName(c.name); setNewPhone(c.phone); setActionMenuFor(null); }} className={`w-full text-left px-4 py-2 text-[10px] font-bold ${isDark ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>Edit</button>
+                                                                  <button onClick={() => { handleDeleteCustomer(c.phone); setActionMenuFor(null); }} className={`w-full text-left px-4 py-2 text-[10px] font-bold text-rose-500 ${isDark ? 'hover:bg-rose-900/20' : 'hover:bg-rose-50'}`}>Delete</button>
                                                             </div>
                                                       )}
                                                 </div>
@@ -303,9 +323,9 @@ export default function OwnerDashboard() {
 
                   {/* TRANSACTION PANE */}
                   {(!showListOnMobile || !isMobileView) && (
-                        <main className="flex-1 flex flex-col bg-white overflow-hidden shadow-2xl">
+                        <main className={`flex-1 flex flex-col overflow-hidden shadow-2xl ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
                               {/* Header */}
-                              <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10 shadow-sm">
+                              <div className={`px-4 py-3 border-b flex justify-between items-center sticky top-0 z-10 shadow-sm ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-100'}`}>
                                     <div className="flex items-center gap-3">
                                           {isMobileView && <button onClick={() => setShowListOnMobile(true)} className="text-xl mr-1">←</button>}
                                           <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-black text-white shadow-md">{selected?.name?.[0]?.toUpperCase()}</div>
@@ -315,22 +335,29 @@ export default function OwnerDashboard() {
                                           </div>
                                     </div>
                                     <div className="flex gap-2">
-                                          <button onClick={sendWhatsAppReminder} className="bg-emerald-100 text-emerald-700 p-2 rounded-full shadow-sm">📲</button>
-                                          <button onClick={() => setPdfModalOpen(true)} className="bg-sky-100 text-sky-700 p-2 rounded-full shadow-sm">📄</button>
+                                          <button onClick={sendWhatsAppReminder} className={`p-2 rounded-full shadow-sm ${isDark ? 'bg-slate-800 text-emerald-400' : 'bg-emerald-100 text-emerald-700'}`}>📲</button>
+                                          <button onClick={() => setPdfModalOpen(true)} className={`p-2 rounded-full shadow-sm ${isDark ? 'bg-slate-800 text-sky-400' : 'bg-sky-100 text-sky-700'}`}>📄</button>
                                     </div>
                               </div>
 
+                              {/* Search in chat */}
+                              <div className={`px-4 py-2 border-b flex items-center gap-2 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
+                                    <span className="opacity-40 text-xs">🔍</span>
+                                    <input placeholder="Search amount, date or note..." className="bg-transparent text-[11px] outline-none flex-1 font-medium" value={chatSearch} onChange={e => setChatSearch(e.target.value)} />
+                                    {chatSearch && <button onClick={() => setChatSearch('')} className="opacity-30 text-xs">✕</button>}
+                              </div>
+
                               {/* Ledger */}
-                              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
-                                    {selected?.ledger?.slice().reverse().map((t, i) => {
-                                          const idx = selected.ledger.length - 1 - i;
+                              <div className={`flex-1 overflow-y-auto p-4 space-y-4 ${isDark ? 'bg-slate-900' : 'bg-slate-50/50'}`}>
+                                    {filteredLedger.slice().reverse().map((t, i) => {
+                                          const originalIdx = selected.ledger.indexOf(t);
                                           return (
                                                 <div key={i} className={`flex ${t.type === 'credit' ? 'justify-end' : 'justify-start'}`}>
-                                                      <button onClick={() => { setEditingIndex(idx); setTxnType(t.type); setTxnAmount(Math.abs(t.amount)); setTxnNote(t.note); }} 
-                                                            className={`p-4 rounded-3xl text-left shadow-sm max-w-[85%] border transition-all active:scale-95 ${t.type === 'credit' ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-white text-slate-900 border-slate-100'}`}>
+                                                      <button onClick={() => { setEditingIndex(originalIdx); setTxnType(t.type); setTxnAmount(Math.abs(t.amount)); setTxnNote(t.note); }} 
+                                                            className={`p-4 rounded-3xl text-left shadow-sm max-w-[85%] border transition-all active:scale-95 ${t.type === 'credit' ? (isDark ? 'bg-emerald-700 text-white border-emerald-600' : 'bg-emerald-600 text-white border-emerald-500') : (isDark ? 'bg-slate-800 text-slate-100 border-slate-700' : 'bg-white text-slate-900 border-slate-100')}`}>
                                                             <div className="flex justify-between items-center mb-2 gap-4">
                                                                   <span className="text-[9px] font-black uppercase tracking-widest opacity-70">{t.type === 'credit' ? 'Udhaar Taken' : 'Payment Given'}</span>
-                                                                  <span className="text-[8px] opacity-60 font-bold">{new Date(t.date).toLocaleDateString()}</span>
+                                                                  <span className="text-[8px] opacity-60 font-bold">{formatDateTime(t.createdAt || t.date)}</span>
                                                             </div>
                                                             <p className="text-sm font-bold leading-snug mb-2">{t.note || 'No Description'}</p>
                                                             <div className="flex justify-between items-end">
@@ -344,18 +371,20 @@ export default function OwnerDashboard() {
                               </div>
 
                               {/* Bottom Action Bar */}
-                              <div className="p-4 bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] space-y-3">
+                              <div className={`p-4 border-t shadow-[0_-4px_20px_rgba(0,0,0,0.03)] space-y-3 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-100'}`}>
                                     <div className="flex gap-2">
-                                          <button onClick={() => setTxnType('credit')} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${txnType === 'credit' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>Udhaar</button>
-                                          <button onClick={() => setTxnType('payment')} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${txnType === 'payment' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>Payment</button>
+                                          <button onClick={() => setTxnType('credit')} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${txnType === 'credit' ? 'bg-emerald-600 text-white shadow-lg' : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-400')}`}>Udhaar</button>
+                                          <button onClick={() => setTxnType('payment')} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${txnType === 'payment' ? (isDark ? 'bg-emerald-50 text-emerald-900' : 'bg-slate-900 text-white shadow-lg') : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-400')}`}>Payment</button>
                                     </div>
-                                    <div className="flex gap-2">
-                                          <input type="number" placeholder="₹ Amount" className="w-24 bg-slate-100 rounded-xl px-4 py-3 text-sm font-bold outline-none border border-transparent focus:border-emerald-200 focus:bg-white" value={txnAmount} onChange={e => setTxnAmount(e.target.value)} />
-                                          <input placeholder="Transaction Note..." className="flex-1 bg-slate-100 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-transparent focus:border-emerald-200 focus:bg-white" value={txnNote} onChange={e => setTxnNote(e.target.value)} />
+                                    <div className="flex gap-2 items-center">
+                                          <input type="number" placeholder="₹ Amount" className={`w-24 rounded-xl px-4 py-3 text-sm font-bold outline-none border focus:bg-white transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500' : 'bg-slate-100 border-transparent focus:border-emerald-200'}`} value={txnAmount} onChange={e => setTxnAmount(e.target.value)} />
+                                          <input placeholder="Transaction Note..." className={`flex-1 rounded-xl px-4 py-3 text-sm font-medium outline-none border focus:bg-white transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500' : 'bg-slate-100 border-transparent focus:border-emerald-200'}`} value={txnNote} onChange={e => setTxnNote(e.target.value)} />
                                           <button onClick={handleSaveTxn} className="bg-emerald-600 text-white font-black text-xs px-6 py-3 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
                                                 {editingIndex !== null ? 'Update' : 'Save'}
                                           </button>
-                                          {editingIndex !== null && <button onClick={() => { setEditingIndex(null); setTxnAmount(''); setTxnNote(''); }} className="bg-rose-500 text-white p-3 rounded-xl font-bold">✕</button>}
+                                          {editingIndex !== null && (
+                                                <button onClick={() => { setEditingIndex(null); setTxnAmount(''); setTxnNote(''); }} className="bg-rose-500 text-white p-3 rounded-xl font-bold shadow-lg active:scale-95">✕</button>
+                                          )}
                                     </div>
                               </div>
                         </main>
@@ -363,9 +392,9 @@ export default function OwnerDashboard() {
 
                   {/* PDF MODAL */}
                   {pdfModalOpen && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6 text-slate-900">
                               <div className="bg-white rounded-[32px] p-8 w-full max-w-sm shadow-2xl animate-scale-up">
-                                    <h3 className="text-xl font-black mb-2 text-slate-900">Generate Report</h3>
+                                    <h3 className="text-xl font-black mb-2">Generate Report</h3>
                                     <p className="text-xs text-slate-400 mb-6 font-medium">Professional statements for your business.</p>
                                     <div className="space-y-4">
                                           <div className="flex bg-slate-100 p-1 rounded-2xl">
