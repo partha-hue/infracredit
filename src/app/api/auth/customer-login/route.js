@@ -22,18 +22,23 @@ export async function POST(req) {
             const customer = await Customer.findOne({ phone: digits });
 
             if (!customer) {
-                  return NextResponse.json({ error: 'This phone number is not registered in any shop. Please ask your shop owner to add you first.' }, { status: 404 });
+                  return NextResponse.json({ error: 'This phone number is not registered. Please ask your shop owner to add you first.' }, { status: 404 });
             }
+
+            // JWT helper
+            const generateToken = () => jwt.sign({ phone: digits, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
             // Registration Flow
             if (isRegistering) {
                   if (customer.isRegistered) return NextResponse.json({ error: 'User already registered. Please login.' }, { status: 400 });
                   
                   const hash = await bcrypt.hash(password, 10);
-                  // Update all customer records with this phone (customer might be in multiple shops)
                   await Customer.updateMany({ phone: digits }, { passwordHash: hash, isRegistered: true });
                   
-                  return NextResponse.json({ success: true, message: 'Password set successfully! You can now login.' });
+                  const token = generateToken();
+                  const res = NextResponse.json({ success: true, token, role: 'customer', message: 'Password set and logged in successfully!' });
+                  res.cookies.set('token', token, { httpOnly: true, path: '/', sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 30 * 24 * 60 * 60 });
+                  return res;
             }
 
             // Login Flow
@@ -44,16 +49,9 @@ export async function POST(req) {
             const isMatch = await bcrypt.compare(password, customer.passwordHash);
             if (!isMatch) return NextResponse.json({ error: 'Incorrect password' }, { status: 401 });
 
-            const token = jwt.sign({ phone: digits, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: '30d' });
-
+            const token = generateToken();
             const res = NextResponse.json({ success: true, token, role: 'customer' });
-            res.cookies.set('token', token, {
-                  httpOnly: true,
-                  path: '/',
-                  sameSite: 'lax',
-                  secure: process.env.NODE_ENV === 'production',
-                  maxAge: 30 * 24 * 60 * 60,
-            });
+            res.cookies.set('token', token, { httpOnly: true, path: '/', sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 30 * 24 * 60 * 60 });
 
             return res;
       } catch (err) {
