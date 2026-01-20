@@ -140,11 +140,10 @@ export default function OwnerDashboard() {
             return () => window.removeEventListener('resize', handleResize);
       }, []);
 
-      // Improved unselect logic: Close dropdown and unselect edit mode when clicking elsewhere
+      // Close dropdown or edit mode when clicking elsewhere
       useEffect(() => {
             const handleGlobalClick = (e) => {
                   if (actionMenuFor) setActionMenuFor(null);
-                  // If clicking on chat area background (not on a bubble or input bar)
                   if (e.target.closest('.chat-background') && !e.target.closest('.chat-bubble') && !e.target.closest('.action-bar')) {
                         setEditingIndex(null);
                         setTxnAmount('');
@@ -201,7 +200,6 @@ export default function OwnerDashboard() {
             } catch (err) { alert(err.message); }
       };
 
-      // Toggle edit mode by clicking chat bubble
       const handleBubbleClick = (idx, t) => {
             if (editingIndex === idx) {
                   setEditingIndex(null);
@@ -268,8 +266,8 @@ export default function OwnerDashboard() {
                   {(showListOnMobile || !isMobileView) && (
                         <aside className={`w-full md:w-80 border-r flex flex-col h-full shadow-sm transition-colors ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'}`}>
                               <div className={`p-4 border-b flex items-center justify-between sticky top-0 z-10 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-100'}`}>
-                                    <div className="flex items-center gap-2">
-                                          <img src="/logo.png" className="h-8 w-auto object-contain" alt="Logo" />
+                                    <div className="flex items-center">
+                                          <img src="/logo.png" className="h-7 w-auto object-contain" alt="Logo" />
                                     </div>
                                     <div className="flex items-center gap-3">
                                           <button onClick={() => router.push('/profile')} className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-black text-white shadow-md overflow-hidden relative border border-emerald-500">
@@ -280,7 +278,7 @@ export default function OwnerDashboard() {
                               </div>
 
                               <div className="p-3 space-y-3">
-                                    <div className={`rounded-xl px-3 py-2 flex items-center gap-2 ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                                    <div className={`rounded-xl px-3 py-2.5 flex items-center gap-2 ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
                                           <span className="opacity-40">🔍</span>
                                           <input placeholder="Search name/phone" className={`bg-transparent text-xs outline-none flex-1 ${isDark ? 'text-white placeholder-slate-500' : 'text-slate-900 placeholder-slate-400'}`} value={search} onChange={e => setSearch(e.target.value)} />
                                     </div>
@@ -288,7 +286,7 @@ export default function OwnerDashboard() {
                                     {/* Whatsapp style filters */}
                                     <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                                           {['all', 'due', 'cleared'].map(f => (
-                                                <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 rounded-full text-[10px] font-black capitalize whitespace-nowrap border transition-all ${filter === f ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' : (isDark ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-200')}`}>
+                                                <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 rounded-full text-[10px] font-black capitalize whitespace-nowrap border transition-all ${filter === f ? 'bg-emerald-600 border-emerald-600 text-white' : (isDark ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-500')}`}>
                                                       {f === 'due' ? 'Credit Due' : f}
                                                 </button>
                                           ))}
@@ -354,9 +352,9 @@ export default function OwnerDashboard() {
                               <div className="bg-amber-500/10 border-b border-amber-500/20 py-3 px-4 flex justify-between items-center animate-slide-down">
                                     <div className="flex flex-col">
                                           <span className="text-[9px] font-black uppercase tracking-widest text-amber-600/70">Total Pending Balance</span>
-                                          <span className="text-2xl font-black text-amber-600 tracking-tight">₹{selected?.currentDue}</span>
+                                          <span className="text-xl sm:text-2xl font-black text-amber-600 tracking-tight">₹{selected?.currentDue}</span>
                                     </div>
-                                    <div className="bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/30">
+                                    <div className="bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/30 hidden sm:block">
                                           <span className="text-[10px] font-black text-amber-700 uppercase">Awaiting Payment</span>
                                     </div>
                               </div>
@@ -383,7 +381,7 @@ export default function OwnerDashboard() {
                                                             </div>
                                                             <p className="text-sm font-bold leading-snug mb-2">{t.note || 'No Description'}</p>
                                                             <div className="flex justify-between items-end">
-                                                                  <p className="text-xl font-black tracking-tight">₹{Math.abs(t.amount)}</p>
+                                                                  <p className="text-lg sm:text-xl font-black tracking-tight">₹{Math.abs(t.amount)}</p>
                                                                   <p className="text-[9px] opacity-50 font-bold uppercase tracking-tighter">Bal: ₹{t.balanceAfter}</p>
                                                             </div>
                                                       </button>
@@ -399,9 +397,9 @@ export default function OwnerDashboard() {
                                           <button onClick={() => setTxnType('payment')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black transition-all ${txnType === 'payment' ? 'bg-slate-900 text-white shadow-lg' : (isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400')}`}>Payment</button>
                                     </div>
                                     <div className="flex gap-2 items-center">
-                                          <input type="number" placeholder="₹ Amount" className={`w-24 rounded-xl px-4 py-3.5 text-sm font-bold outline-none border transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500' : 'bg-slate-100 border-transparent focus:border-emerald-200 focus:bg-white'}`} value={txnAmount} onChange={e => setTxnAmount(e.target.value)} />
-                                          <input placeholder="Transaction Note..." className={`flex-1 rounded-xl px-4 py-3.5 text-sm font-medium outline-none border transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500' : 'bg-slate-100 border-transparent focus:border-emerald-200 focus:bg-white'}`} value={txnNote} onChange={e => setTxnNote(e.target.value)} />
-                                          <button onClick={handleSaveTxn} className="bg-emerald-600 text-white font-black text-xs px-6 py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
+                                          <input type="number" placeholder="₹ Amount" className={`w-20 sm:w-24 rounded-xl px-3 sm:px-4 py-3 sm:py-3.5 text-sm font-bold outline-none border transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500' : 'bg-slate-100 border-transparent focus:border-emerald-200 focus:bg-white'}`} value={txnAmount} onChange={e => setTxnAmount(e.target.value)} />
+                                          <input placeholder="Note..." className={`flex-1 rounded-xl px-3 sm:px-4 py-3 sm:py-3.5 text-sm font-medium outline-none border transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500' : 'bg-slate-100 border-transparent focus:border-emerald-200 focus:bg-white'}`} value={txnNote} onChange={e => setTxnNote(e.target.value)} />
+                                          <button onClick={handleSaveTxn} className="bg-emerald-600 text-white font-black text-xs px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
                                                 {editingIndex !== null ? 'Update' : 'Save'}
                                           </button>
                                     </div>
