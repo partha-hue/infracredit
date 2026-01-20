@@ -29,15 +29,13 @@ const CustomerSchema = new Schema(
             currentDue: { type: Number, default: 0 },
             isDeleted: { type: Boolean, default: false },
             deletedAt: { type: Date },
+            
+            // New fields for Customer Self-Login
+            passwordHash: { type: String }, // Set when customer registers themselves
+            isRegistered: { type: Boolean, default: false }
       },
       { timestamps: true },
 );
-
-// We remove the unique index for (ownerId, phone) because a user might delete a phone number 
-// and then try to add it again. We only want unique active phones.
-// However, handling unique indexes with soft-delete is tricky. 
-// For now, we will handle this in the API logic.
-// CustomerSchema.index({ ownerId: 1, phone: 1 }, { unique: true });
 
 export default mongoose.models.Customer ||
       mongoose.model('Customer', CustomerSchema);
