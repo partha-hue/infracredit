@@ -31,8 +31,9 @@ const CustomerSchema = new Schema(
             deletedAt: { type: Date },
             
             // New fields for Customer Self-Login
-            passwordHash: { type: String }, // Set when customer registers themselves
-            isRegistered: { type: Boolean, default: false }
+            passwordHash: { type: String },
+            isRegistered: { type: Boolean, default: false },
+            avatarUrl: { type: String, default: '' } // Added for customer profile
       },
       { timestamps: true },
 );
