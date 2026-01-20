@@ -127,6 +127,7 @@ export default function OwnerDashboard() {
 
       const [isMobileView, setIsMobileView] = useState(true);
       const [activeTab, setActiveTab] = useState('customers'); // 'customers', 'analytics', 'calculator'
+      const [showChatOnMobile, setShowChatOnMobile] = useState(false);
 
       const [pdfModalOpen, setPdfModalOpen] = useState(false);
       const [pdfType, setPdfType] = useState('ledger');
@@ -201,7 +202,10 @@ export default function OwnerDashboard() {
             try {
                   await API.deleteCustomer(phone);
                   setCustomers(p => p.filter(c => c.phone !== phone));
-                  if (selected?.phone === phone) setSelected(null);
+                  if (selected?.phone === phone) {
+                        setSelected(null);
+                        setShowChatOnMobile(false);
+                  }
             } catch (err) { alert(err.message); }
       };
 
@@ -269,10 +273,16 @@ export default function OwnerDashboard() {
       const handleCalc = (btn) => {
             if (btn === 'C') setCalcVal('0');
             else if (btn === '=') {
-                  try { setCalcVal(eval(calcVal).toString()); } catch { setCalcVal('Error'); }
+                  try { 
+                        // eslint-disable-next-line no-eval
+                        const result = eval(calcVal.replace(/x/g, '*'));
+                        setCalcVal(Number.isInteger(result) ? result.toString() : result.toFixed(2).toString());
+                  } catch { setCalcVal('Error'); }
             } else if (btn === '+Add') {
+                  if (!selected) return alert('Select a customer first');
                   setTxnAmount(calcVal);
                   setActiveTab('customers');
+                  if (isMobileView) setShowChatOnMobile(true);
             } else {
                   setCalcVal(calcVal === '0' ? btn : calcVal + btn);
             }
@@ -288,7 +298,7 @@ export default function OwnerDashboard() {
                   {/* MAIN CONTENT AREA */}
                   <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
                         {/* CUSTOMER LIST / SIDEBAR */}
-                        {(activeTab === 'customers' || !isMobileView) && (
+                        {(activeTab === 'customers' && (!showChatOnMobile || !isMobileView)) && (
                               <aside className={`w-full md:w-80 border-r flex flex-col h-full shadow-sm transition-colors ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'}`}>
                                     {/* Header */}
                                     <div className={`p-4 border-b flex items-center justify-between sticky top-0 z-10 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-100'}`}>
@@ -329,7 +339,7 @@ export default function OwnerDashboard() {
                                     <div className="flex-1 overflow-y-auto">
                                           {filteredCustomers.map(c => (
                                                 <div key={c.phone} className={`group flex items-center px-4 py-4 border-b transition-all ${isDark ? 'border-slate-800 hover:bg-slate-900' : 'border-slate-50 hover:bg-slate-50'} ${selected?.phone === c.phone ? (isDark ? 'bg-emerald-900/20 border-l-4 border-l-emerald-600' : 'bg-emerald-50 border-l-4 border-l-emerald-600') : ''}`}>
-                                                      <button onClick={() => { setSelected(c); setActiveTab('customers'); }} className="flex-1 text-left min-w-0">
+                                                      <button onClick={() => { setSelected(c); setShowChatOnMobile(true); }} className="flex-1 text-left min-w-0">
                                                             <div className="flex justify-between items-center">
                                                                   <p className={`text-sm font-bold truncate pr-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{c.name}</p>
                                                                   <p className={`text-sm font-black ${c.currentDue > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>₹{c.currentDue}</p>
@@ -352,11 +362,12 @@ export default function OwnerDashboard() {
                         )}
 
                         {/* TRANSACTION CHAT VIEW */}
-                        {(activeTab === 'customers' || !isMobileView) && selected && (
+                        {(activeTab === 'customers' && (showChatOnMobile || !isMobileView)) && selected && (
                               <main className={`flex-1 flex flex-col overflow-hidden shadow-2xl transition-colors ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
                                     {/* Header */}
                                     <div className={`px-4 py-3 border-b flex justify-between items-center sticky top-0 z-10 shadow-sm ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-100'}`}>
                                           <div className="flex items-center gap-3">
+                                                {isMobileView && <button onClick={() => setShowChatOnMobile(false)} className="text-xl mr-1">←</button>}
                                                 <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-black text-white shadow-md">{selected?.name?.[0]?.toUpperCase()}</div>
                                                 <div>
                                                       <p className={`text-base font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>{selected?.name}</p>
@@ -402,7 +413,7 @@ export default function OwnerDashboard() {
                                                                   </div>
                                                                   <p className="text-sm font-bold leading-snug mb-2">{t.note || 'No Description'}</p>
                                                                   <div className="flex justify-between items-end">
-                                                                        <p className="text-lg font-black tracking-tight">₹{Math.abs(t.amount)}</p>
+                                                                        <p className="text-lg sm:text-xl font-black tracking-tight">₹{Math.abs(t.amount)}</p>
                                                                         <p className="text-[9px] opacity-50 font-bold uppercase tracking-tighter">Bal: ₹{t.balanceAfter}</p>
                                                                   </div>
                                                             </button>
@@ -476,7 +487,7 @@ export default function OwnerDashboard() {
                   {/* BOTTOM WHATSAPP STYLE NAV BAR (Mobile Only) */}
                   {isMobileView && (
                         <nav className={`border-t flex items-center justify-around py-3 pb-6 sticky bottom-0 z-20 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'}`}>
-                              <button onClick={() => setActiveTab('customers')} className={`flex flex-col items-center transition-all ${activeTab === 'customers' ? 'text-emerald-500 scale-110' : 'opacity-40'}`}>
+                              <button onClick={() => { setActiveTab('customers'); setShowChatOnMobile(false); }} className={`flex flex-col items-center transition-all ${activeTab === 'customers' ? 'text-emerald-500 scale-110' : 'opacity-40'}`}>
                                     <UsersIcon />
                                     <span className="text-[10px] font-bold mt-1">Khatas</span>
                               </button>
@@ -493,24 +504,27 @@ export default function OwnerDashboard() {
 
                   {/* PDF MODAL */}
                   {pdfModalOpen && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-6">
-                              <div className={`rounded-[32px] p-8 w-full max-w-sm shadow-2xl animate-scale-up ${isDark ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}`}>
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-6 text-slate-900">
+                              <div className="bg-white rounded-[32px] p-8 w-full max-w-sm shadow-2xl animate-scale-up">
                                     <h3 className="text-xl font-black mb-2">Generate Report</h3>
-                                    <p className="text-xs opacity-50 mb-6 font-medium">Professional statements for your business.</p>
+                                    <p className="text-xs text-slate-400 mb-6 font-medium">Professional statements for your business.</p>
                                     <div className="space-y-4">
-                                          <div className={`flex p-1 rounded-2xl ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
-                                                <button onClick={() => { setPdfType('ledger'); setPdfBlobUrl(null); }} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${pdfType === 'ledger' ? 'bg-white text-slate-900 shadow-sm' : 'opacity-40'}`}>Ledger</button>
-                                                <button onClick={() => { setPdfType('invoice'); setPdfBlobUrl(null); }} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${pdfType === 'invoice' ? 'bg-white text-slate-900 shadow-sm' : 'opacity-40'}`}>GST Invoice</button>
+                                          <div className="flex bg-slate-100 p-1 rounded-2xl">
+                                                <button onClick={() => { setPdfType('ledger'); setPdfBlobUrl(null); }} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${pdfType === 'ledger' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}>Ledger</button>
+                                                <button onClick={() => { setPdfType('invoice'); setPdfBlobUrl(null); }} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${pdfType === 'invoice' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}>GST Invoice</button>
                                           </div>
+                                          
                                           {!pdfBlobUrl ? (
-                                                <button onClick={() => handleGeneratePdf(selected.phone, pdfType)} disabled={pdfLoading} className="w-full bg-emerald-600 py-4 rounded-2xl font-black text-white shadow-xl active:scale-95 transition-all disabled:opacity-50">{pdfLoading ? 'Building PDF...' : 'Create Document'}</button>
+                                                <button onClick={() => handleGeneratePdf(selected.phone, pdfType)} disabled={pdfLoading} className="w-full bg-emerald-600 py-4 rounded-2xl font-black text-white shadow-xl active:scale-95 transition-all disabled:opacity-50">
+                                                      {pdfLoading ? 'Building PDF...' : 'Create Document'}
+                                                </button>
                                           ) : (
                                                 <div className="flex flex-col gap-3">
                                                       <a href={pdfBlobUrl} download={`${pdfType === 'invoice' ? 'Invoice' : 'Ledger'}.pdf`} className="w-full bg-sky-600 text-white py-4 rounded-2xl font-black text-center shadow-lg active:scale-95 transition-all">Download PDF</a>
                                                       <button onClick={() => sendWhatsAppReminder()} className="w-full bg-emerald-500 text-white py-3 rounded-2xl font-bold text-sm">Share on WhatsApp</button>
                                                 </div>
                                           )}
-                                          <button onClick={() => { setPdfModalOpen(false); setPdfBlobUrl(null); }} className="w-full py-2 text-[10px] opacity-40 font-bold uppercase tracking-widest">Maybe Later</button>
+                                          <button onClick={() => { setPdfModalOpen(false); setPdfBlobUrl(null); }} className="w-full py-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">Maybe Later</button>
                                     </div>
                               </div>
                         </div>
