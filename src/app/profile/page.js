@@ -44,6 +44,11 @@ export default function ProfilePage() {
             fetchProfile();
       }, [router]);
 
+      const handleLogout = () => {
+            localStorage.clear();
+            router.push('/');
+      };
+
       const isDark = theme === 'dark';
 
       if (loading) {
@@ -59,11 +64,19 @@ export default function ProfilePage() {
       return (
             <div className={`min-h-screen transition-colors duration-200 ${isDark ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-900'} font-sans`}>
                   <div className={`border-b px-6 py-4 sticky top-0 z-10 shadow-sm ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'}`}>
-                        <div className="max-w-3xl mx-auto flex items-center gap-4">
-                              <button onClick={() => router.push('/shops')} className={`p-2 rounded-full transition-colors ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'}`}>
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                        <div className="max-w-3xl mx-auto flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                    <button onClick={() => router.push('/shops')} className={`p-2 rounded-full transition-colors ${isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'}`}>
+                                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                                    </button>
+                                    <h1 className="text-xl font-bold">Account Settings</h1>
+                              </div>
+                              <button 
+                                    onClick={handleLogout}
+                                    className="text-rose-500 font-bold text-xs uppercase tracking-widest px-4 py-2 hover:bg-rose-500/10 rounded-full transition-colors"
+                              >
+                                    Logout
                               </button>
-                              <h1 className="text-xl font-bold">Account Settings</h1>
                         </div>
                   </div>
 
