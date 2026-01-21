@@ -126,7 +126,7 @@ export default function OwnerDashboard() {
       const [editingIndex, setEditingIndex] = useState(null);
 
       const [isMobileView, setIsMobileView] = useState(true);
-      const [activeTab, setActiveTab] = useState('customers'); // 'customers', 'analytics', 'calculator'
+      const [activeTab, setActiveTab] = useState('customers'); 
       const [showChatOnMobile, setShowChatOnMobile] = useState(false);
 
       const [pdfModalOpen, setPdfModalOpen] = useState(false);
@@ -134,7 +134,6 @@ export default function OwnerDashboard() {
       const [pdfLoading, setPdfLoading] = useState(false);
       const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
 
-      // Calculator state
       const [calcVal, setCalcVal] = useState('0');
 
       const load = async () => {
@@ -339,12 +338,17 @@ export default function OwnerDashboard() {
                                     <div className="flex-1 overflow-y-auto">
                                           {filteredCustomers.map(c => (
                                                 <div key={c.phone} className={`group flex items-center px-4 py-4 border-b transition-all ${isDark ? 'border-slate-800 hover:bg-slate-900' : 'border-slate-50 hover:bg-slate-50'} ${selected?.phone === c.phone ? (isDark ? 'bg-emerald-900/20 border-l-4 border-l-emerald-600' : 'bg-emerald-50 border-l-4 border-l-emerald-600') : ''}`}>
-                                                      <button onClick={() => { setSelected(c); setShowChatOnMobile(true); }} className="flex-1 text-left min-w-0">
-                                                            <div className="flex justify-between items-center">
-                                                                  <p className={`text-sm font-bold truncate pr-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{c.name}</p>
-                                                                  <p className={`text-sm font-black ${c.currentDue > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>₹{c.currentDue}</p>
+                                                      <button onClick={() => { setSelected(c); setShowChatOnMobile(true); }} className="flex-1 text-left min-w-0 flex items-center gap-4">
+                                                            <div className="w-12 h-12 rounded-full bg-emerald-600 flex items-center justify-center font-black text-white shadow-md overflow-hidden flex-shrink-0">
+                                                                  {c.avatarUrl ? <img src={c.avatarUrl} className="w-full h-full object-cover" /> : c.name[0].toUpperCase()}
                                                             </div>
-                                                            <p className="text-[10px] opacity-50 font-medium">{c.phone}</p>
+                                                            <div className="flex-1 min-w-0">
+                                                                  <div className="flex justify-between items-center">
+                                                                        <p className={`text-sm font-bold truncate pr-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{c.name}</p>
+                                                                        <p className={`text-sm font-black ${c.currentDue > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>₹{c.currentDue}</p>
+                                                                  </div>
+                                                                  <p className="text-[10px] opacity-50 font-medium">{c.phone}</p>
+                                                            </div>
                                                       </button>
                                                       <div className="relative ml-2">
                                                             <button onClick={(e) => { e.stopPropagation(); setActionMenuFor(actionMenuFor === c.phone ? null : c.phone); }} className="p-2 opacity-40 hover:opacity-100">⋮</button>
@@ -368,7 +372,9 @@ export default function OwnerDashboard() {
                                     <div className={`px-4 py-3 border-b flex justify-between items-center sticky top-0 z-10 shadow-sm ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-100'}`}>
                                           <div className="flex items-center gap-3">
                                                 {isMobileView && <button onClick={() => setShowChatOnMobile(false)} className="text-xl mr-1">←</button>}
-                                                <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-black text-white shadow-md">{selected?.name?.[0]?.toUpperCase()}</div>
+                                                <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-black text-white shadow-md overflow-hidden">
+                                                      {selected.avatarUrl ? <img src={selected.avatarUrl} className="w-full h-full object-cover" /> : selected.name[0].toUpperCase()}
+                                                </div>
                                                 <div>
                                                       <p className={`text-base font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>{selected?.name}</p>
                                                       <p className="text-[10px] text-slate-400 font-bold tracking-widest">{selected?.phone}</p>
@@ -380,14 +386,14 @@ export default function OwnerDashboard() {
                                           </div>
                                     </div>
 
-                                    {/* BANNER */}
+                                    {/* BANNER STYLE PENDING */}
                                     <div className="bg-amber-500/10 border-b border-amber-500/20 py-3 px-4 flex justify-between items-center animate-slide-down">
                                           <div className="flex flex-col">
                                                 <span className="text-[9px] font-black uppercase text-amber-600/70">Total Pending Balance</span>
-                                                <span className="text-xl font-black text-amber-600 tracking-tight">₹{selected?.currentDue}</span>
+                                                <span className="text-xl sm:text-2xl font-black text-amber-600 tracking-tight">₹{selected?.currentDue}</span>
                                           </div>
-                                          <div className="bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/30">
-                                                <span className="text-[10px] font-black text-amber-700 uppercase tracking-tighter">Awaiting Payment</span>
+                                          <div className="bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/30 hidden sm:block">
+                                                <span className="text-[10px] font-black text-amber-700 uppercase">Awaiting Payment</span>
                                           </div>
                                     </div>
 
@@ -395,7 +401,7 @@ export default function OwnerDashboard() {
                                     <div className={`px-4 py-2 border-b flex items-center gap-3 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
                                           <span className="opacity-40 text-sm">🔍</span>
                                           <input placeholder="Search amount, date or note..." className={`bg-transparent text-xs outline-none flex-1 font-medium ${isDark ? 'text-white placeholder-slate-600' : 'text-slate-900 placeholder-slate-400'}`} value={chatSearch} onChange={e => setChatSearch(e.target.value)} />
-                                          {chatSearch && <button onClick={() => setChatSearch('')} className="opacity-30 text-xs">✕</button>}
+                                          {chatSearch && <button onClick={() => setChatSearch('')} className="opacity-30 text-xs hover:opacity-100">✕</button>}
                                     </div>
 
                                     {/* Ledger */}
@@ -422,16 +428,18 @@ export default function OwnerDashboard() {
                                           })}
                                     </div>
 
-                                    {/* Action Bar */}
+                                    {/* Bottom Action Bar */}
                                     <div className={`action-bar p-4 border-t shadow-2xl space-y-3 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-100'}`}>
                                           <div className="flex gap-3">
-                                                <button onClick={() => setTxnType('credit')} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${txnType === 'credit' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20' : (isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400')}`}>Udhaar</button>
-                                                <button onClick={() => setTxnType('payment')} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${txnType === 'payment' ? 'bg-slate-900 text-white shadow-lg' : (isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400')}`}>Payment</button>
+                                                <button onClick={() => setTxnType('credit')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black transition-all ${txnType === 'credit' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20' : (isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400')}`}>Udhaar</button>
+                                                <button onClick={() => setTxnType('payment')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black transition-all ${txnType === 'payment' ? 'bg-slate-900 text-white shadow-lg' : (isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400')}`}>Payment</button>
                                           </div>
                                           <div className="flex gap-2 items-center">
-                                                <input type="number" placeholder="₹" className={`w-20 rounded-xl px-3 py-3 text-sm font-bold outline-none border transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500' : 'bg-slate-100 border-transparent focus:border-emerald-200'}`} value={txnAmount} onChange={e => setTxnAmount(e.target.value)} />
-                                                <input placeholder="Note..." className={`flex-1 rounded-xl px-3 py-3 text-sm font-medium outline-none border transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500' : 'bg-slate-100 border-transparent focus:border-emerald-200'}`} value={txnNote} onChange={e => setTxnNote(e.target.value)} />
-                                                <button onClick={handleSaveTxn} className="bg-emerald-600 text-white font-black text-xs px-4 py-3 rounded-xl shadow-lg active:scale-95 transition-all">{editingIndex !== null ? 'Update' : 'Save'}</button>
+                                                <input type="number" placeholder="₹" className={`w-20 sm:w-24 rounded-xl px-3 sm:px-4 py-3 sm:py-3.5 text-sm font-bold outline-none border transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500' : 'bg-slate-100 border-transparent focus:border-emerald-200 focus:bg-white'}`} value={txnAmount} onChange={e => setTxnAmount(e.target.value)} />
+                                                <input placeholder="Note..." className={`flex-1 rounded-xl px-3 sm:px-4 py-3 sm:py-3.5 text-sm font-medium outline-none border transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500' : 'bg-slate-100 border-transparent focus:border-emerald-200 focus:bg-white'}`} value={txnNote} onChange={e => setTxnNote(e.target.value)} />
+                                                <button onClick={handleSaveTxn} className="bg-emerald-600 text-white font-black text-xs px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
+                                                      {editingIndex !== null ? 'Update' : 'Save'}
+                                                </button>
                                           </div>
                                     </div>
                               </main>
@@ -506,10 +514,10 @@ export default function OwnerDashboard() {
                   {pdfModalOpen && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-6 text-slate-900">
                               <div className="bg-white rounded-[32px] p-8 w-full max-w-sm shadow-2xl animate-scale-up">
-                                    <h3 className="text-xl font-black mb-2">Generate Report</h3>
+                                    <h3 className="text-xl font-black mb-2 text-slate-900">Generate Report</h3>
                                     <p className="text-xs text-slate-400 mb-6 font-medium">Professional statements for your business.</p>
                                     <div className="space-y-4">
-                                          <div className="flex bg-slate-100 p-1 rounded-2xl">
+                                          <div className={`flex p-1 rounded-2xl ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
                                                 <button onClick={() => { setPdfType('ledger'); setPdfBlobUrl(null); }} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${pdfType === 'ledger' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}>Ledger</button>
                                                 <button onClick={() => { setPdfType('invoice'); setPdfBlobUrl(null); }} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${pdfType === 'invoice' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}>GST Invoice</button>
                                           </div>
