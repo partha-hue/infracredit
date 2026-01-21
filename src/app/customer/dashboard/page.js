@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Toast from '@/components/Toast';
 
 /* ======================
    2D ICONS (SVG)
@@ -21,6 +22,12 @@ export default function CustomerDashboard() {
       const [profileData, setProfileData] = useState({ name: '', avatarUrl: '', phone: '' });
       const [passwords, setPasswords] = useState({ newPassword: '', confirmPassword: '' });
       const [viewingProfile, setViewingProfile] = useState(null); // To view owner or customer profile
+      
+      const [toast, setToast] = useState(null);
+
+      const showToast = (message, type = 'success') => {
+            setToast({ message, type });
+      };
 
       useEffect(() => {
             const savedTheme = localStorage.getItem('theme') || 'light';
@@ -45,6 +52,7 @@ export default function CustomerDashboard() {
             const next = theme === 'light' ? 'dark' : 'light';
             setTheme(next);
             localStorage.setItem('theme', next);
+            showToast(`Theme: ${next}`);
       };
 
       const handleLogout = () => {
@@ -62,12 +70,13 @@ export default function CustomerDashboard() {
                         },
                         body: JSON.stringify({ name: profileData.name })
                   });
-                  if (res.ok) alert('Name updated!');
-            } catch (err) { alert(err.message); }
+                  if (res.ok) showToast('Name updated successfully');
+                  else throw new Error('Update failed');
+            } catch (err) { showToast(err.message, 'error'); }
       };
 
       const handlePasswordUpdate = async () => {
-            if (passwords.newPassword !== passwords.confirmPassword) return alert('Passwords mismatch');
+            if (passwords.newPassword !== passwords.confirmPassword) return showToast('Passwords mismatch', 'error');
             try {
                   const res = await fetch('/api/customer/profile', {
                         method: 'PATCH',
@@ -77,8 +86,11 @@ export default function CustomerDashboard() {
                         },
                         body: JSON.stringify({ newPassword: passwords.newPassword })
                   });
-                  if (res.ok) alert('Password updated!');
-            } catch (err) { alert(err.message); }
+                  if (res.ok) {
+                        showToast('Password updated successfully');
+                        setPasswords({ newPassword: '', confirmPassword: '' });
+                  } else throw new Error('Update failed');
+            } catch (err) { showToast(err.message, 'error'); }
       };
 
       const handleAvatarUpload = async (e) => {
@@ -97,9 +109,9 @@ export default function CustomerDashboard() {
                         });
                         if (res.ok) {
                               setProfileData(p => ({ ...p, avatarUrl: reader.result }));
-                              alert('Avatar updated!');
-                        }
-                  } catch (err) { alert(err.message); }
+                              showToast('Profile picture updated');
+                        } else throw new Error('Upload failed');
+                  } catch (err) { showToast(err.message, 'error'); }
             };
             reader.readAsDataURL(file);
       };
@@ -121,6 +133,8 @@ export default function CustomerDashboard() {
 
       return (
             <div className={`fixed inset-0 flex flex-col overflow-hidden font-sans transition-colors duration-200 ${rootBg}`}>
+                  {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
                   {/* HEADER */}
                   <div className={`px-6 py-4 border-b flex justify-between items-center sticky top-0 z-10 shadow-sm transition-colors ${headerBg}`}>
                         <div className="flex items-center gap-2">

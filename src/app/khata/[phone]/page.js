@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Toast from '@/components/Toast';
 
 /* ======================
    OPTIONAL TOKEN HELPER
@@ -38,6 +39,12 @@ export default function CustomerKhataPage({ params }) {
       const [loading, setLoading] = useState(true);
       const [theme, setTheme] = useState('light'); // Default to light mode for clear visibility
       const [viewingProfile, setViewingProfile] = useState(null);
+      
+      const [toast, setToast] = useState(null);
+
+      const showToast = (message, type = 'success') => {
+            setToast({ message, type });
+      };
 
       useEffect(() => {
             const load = async () => {
@@ -91,10 +98,7 @@ export default function CustomerKhataPage({ params }) {
                         setCustomer(data);
                   } catch (err) {
                         console.error(err);
-                        alert(
-                              err?.message ||
-                              'Unable to load your khata. Please contact shop owner.'
-                        );
+                        showToast(err?.message || 'Unable to load your khata.', 'error');
                   } finally {
                         setLoading(false);
                   }
@@ -119,6 +123,12 @@ export default function CustomerKhataPage({ params }) {
             ? 'bg-slate-800 text-slate-100'
             : 'bg-slate-100 text-slate-800 border border-slate-200';
 
+      const toggleTheme = () => {
+            const next = isDark ? 'light' : 'dark';
+            setTheme(next);
+            showToast(`Theme: ${next}`);
+      };
+
       if (loading) {
             return (
                   <div className={`min-h-screen flex items-center justify-center ${rootBg} ${textColor}`}>
@@ -140,6 +150,8 @@ export default function CustomerKhataPage({ params }) {
 
       return (
             <div className={`min-h-screen ${rootBg} ${textColor} flex flex-col font-sans transition-colors duration-200`}>
+                  {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
                   {/* APP HEADER */}
                   <div className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b ${borderCol} sticky top-0 z-10 shadow-sm`}>
                         <div className="flex items-center gap-3">
@@ -153,7 +165,7 @@ export default function CustomerKhataPage({ params }) {
                         </div>
 
                         <button
-                              onClick={() => setTheme(isDark ? 'light' : 'dark')}
+                              onClick={toggleTheme}
                               className={`p-2 rounded-full ${isDark ? 'bg-slate-800' : 'bg-slate-100'} transition-colors`}
                         >
                               {isDark ? '☀️' : '🌙'}

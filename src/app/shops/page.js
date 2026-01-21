@@ -16,6 +16,7 @@ import {
       Tooltip,
       ResponsiveContainer,
 } from 'recharts';
+import Toast from '@/components/Toast';
 
 /* ======================
    HELPERS & API
@@ -54,6 +55,7 @@ const API = {
                   headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
                   body: JSON.stringify({ name, phone }),
             });
+            if (!res.ok) throw new Error((await res.json()).error || 'Failed to add customer');
             return res.json();
       },
       updateCustomer: async (phone, payload) => {
@@ -62,13 +64,16 @@ const API = {
                   headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
                   body: JSON.stringify(payload),
             });
+            if (!res.ok) throw new Error((await res.json()).error || 'Failed to update customer');
             return res.json();
       },
       deleteCustomer: async (phone) => {
-            return fetch(`/api/customers/${encodeURIComponent(phone)}`, {
+            const res = await fetch(`/api/customers/${encodeURIComponent(phone)}`, {
                   method: 'DELETE',
                   headers: { Authorization: `Bearer ${getToken()}` },
             });
+            if (!res.ok) throw new Error('Failed to delete customer');
+            return res;
       },
       addTxn: async (phone, type, amount, note) => {
             const res = await fetch(`/api/customers/${encodeURIComponent(phone)}`, {
@@ -76,6 +81,7 @@ const API = {
                   headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
                   body: JSON.stringify({ type, amount, note, date: new Date().toISOString() }),
             });
+            if (!res.ok) throw new Error('Failed to add transaction');
             return res.json();
       },
       updateLedger: async (phone, ledger) => {
@@ -84,6 +90,7 @@ const API = {
                   headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
                   body: JSON.stringify({ ledger }),
             });
+            if (!res.ok) throw new Error('Failed to update ledger');
             return res.json();
       }
 };
@@ -137,6 +144,12 @@ export default function OwnerDashboard() {
 
       const [calcVal, setCalcVal] = useState('0');
       const [viewingProfile, setViewingProfile] = useState(null);
+      
+      const [toast, setToast] = useState(null);
+
+      const showToast = (message, type = 'success') => {
+            setToast({ message, type });
+      };
 
       const load = async () => {
             try {
@@ -182,20 +195,22 @@ export default function OwnerDashboard() {
       }, [actionMenuFor]);
 
       const handleAddOrEditCustomer = async () => {
-            if (!newName || newPhone.length !== 10) return alert('Enter valid details');
+            if (!newName || newPhone.length !== 10) return showToast('Enter valid details', 'error');
             try {
                   let updated;
                   if (editingPhone) {
                         updated = await API.updateCustomer(editingPhone, { name: newName, newPhone });
                         setCustomers(p => p.map(c => c.phone === editingPhone ? updated : c));
                         setSelected(updated);
+                        showToast('Customer updated successfully');
                   } else {
                         updated = await API.addCustomer(newName, newPhone);
                         setCustomers(p => [updated, ...p]);
                         setSelected(updated);
+                        showToast('New customer added');
                   }
                   setNewName(''); setNewPhone(''); setEditingPhone(null);
-            } catch (err) { alert(err.message); }
+            } catch (err) { showToast(err.message, 'error'); }
       };
 
       const handleDeleteCustomer = async (phone) => {
@@ -207,11 +222,12 @@ export default function OwnerDashboard() {
                         setSelected(null);
                         setShowChatOnMobile(false);
                   }
-            } catch (err) { alert(err.message); }
+                  showToast('Customer moved to restore bin', 'warning');
+            } catch (err) { showToast(err.message, 'error'); }
       };
 
       const handleSaveTxn = async () => {
-            if (!selected || !txnAmount) return;
+            if (!selected || !txnAmount) return showToast('Enter amount', 'warning');
             try {
                   let updated;
                   if (editingIndex !== null) {
@@ -220,15 +236,17 @@ export default function OwnerDashboard() {
                         newLedger[editingIndex] = { ...newLedger[editingIndex], type: txnType, amount: signed, note: txnNote };
                         updated = await API.updateLedger(selected.phone, newLedger);
                         setEditingIndex(null);
+                        showToast('Transaction updated');
                   } else {
                         updated = await API.addTxn(selected.phone, txnType, Number(txnAmount), txnNote);
+                        showToast('Transaction saved');
                   }
                   setSelected(updated);
                   setCustomers(prev => prev.map(c => c.phone === updated.phone ? updated : c));
                   setTxnAmount(''); setTxnNote('');
                   const summary = await API.getMonthlySummary();
                   setMonthlyData(summary);
-            } catch (err) { alert(err.message); }
+            } catch (err) { showToast(err.message, 'error'); }
       };
 
       const handleBubbleClick = (idx, t) => {
@@ -248,12 +266,14 @@ export default function OwnerDashboard() {
             if (!selected) return;
             const msg = encodeURIComponent(`Hi ${selected.name}, your current due at ${ownerProfile?.shopName || 'our shop'} is ₹${selected.currentDue}. Check full khata here: ${window.location.origin}/khata/${selected.phone}`);
             window.open(`https://wa.me/91${selected.phone}?text=${msg}`, '_blank');
+            showToast('Opening WhatsApp...');
       };
 
       const toggleTheme = () => {
             const next = theme === 'light' ? 'dark' : 'light';
             setTheme(next);
             localStorage.setItem('theme', next);
+            showToast(`Theme switched to ${next}`);
       };
 
       const filteredCustomers = useMemo(() => {
@@ -280,10 +300,11 @@ export default function OwnerDashboard() {
                         setCalcVal(Number.isInteger(result) ? result.toString() : result.toFixed(2).toString());
                   } catch { setCalcVal('Error'); }
             } else if (btn === '+Add') {
-                  if (!selected) return alert('Select a customer first');
+                  if (!selected) return showToast('Select a customer first', 'warning');
                   setTxnAmount(calcVal);
                   setActiveTab('customers');
                   if (isMobileView) setShowChatOnMobile(true);
+                  showToast('Amount copied to txn');
             } else {
                   setCalcVal(calcVal === '0' ? btn : calcVal + btn);
             }
@@ -299,8 +320,9 @@ export default function OwnerDashboard() {
                   const blob = await res.blob();
                   const url = window.URL.createObjectURL(blob);
                   setPdfBlobUrl(url);
+                  showToast('Document ready!');
             } catch (err) {
-                  alert(err.message);
+                  showToast(err.message, 'error');
             } finally {
                   setPdfLoading(false);
             }
@@ -313,6 +335,8 @@ export default function OwnerDashboard() {
       return (
             <div className={`fixed inset-0 transition-colors duration-200 ${isDark ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-900'} flex flex-col overflow-hidden font-sans`}>
                   
+                  {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
                   {/* MAIN CONTENT AREA */}
                   <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
                         {/* CUSTOMER LIST / SIDEBAR */}
