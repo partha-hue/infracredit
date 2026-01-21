@@ -29,8 +29,9 @@ export async function GET(req) {
             }
 
             // Find all customer records belonging to this phone number across all shops
+            // We need to populate avatarUrl as well
             const khatas = await Customer.find({ phone: decoded.phone, isDeleted: false })
-                  .populate('ownerId', 'shopName ownerName')
+                  .populate('ownerId', 'shopName ownerName avatarUrl phone email')
                   .sort({ updatedAt: -1 });
 
             return NextResponse.json(khatas, { status: 200 });

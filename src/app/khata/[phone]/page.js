@@ -37,6 +37,7 @@ export default function CustomerKhataPage({ params }) {
       const [customer, setCustomer] = useState(null);
       const [loading, setLoading] = useState(true);
       const [theme, setTheme] = useState('light'); // Default to light mode for clear visibility
+      const [viewingProfile, setViewingProfile] = useState(null);
 
       useEffect(() => {
             const load = async () => {
@@ -138,13 +139,13 @@ export default function CustomerKhataPage({ params }) {
       }
 
       return (
-            <div className={`min-h-screen ${rootBg} ${textColor} flex flex-col font-sans`}>
+            <div className={`min-h-screen ${rootBg} ${textColor} flex flex-col font-sans transition-colors duration-200`}>
                   {/* APP HEADER */}
                   <div className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b ${borderCol} sticky top-0 z-10 shadow-sm`}>
                         <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold text-white shadow-sm">
-                                    {customer.name?.[0]?.toUpperCase() || 'C'}
-                              </div>
+                              <button onClick={() => setViewingProfile({ name: customer.name, avatarUrl: customer.avatarUrl, sub: 'Customer Khata' })} className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold text-white shadow-sm overflow-hidden">
+                                    {customer.avatarUrl ? <img src={customer.avatarUrl} className="w-full h-full object-cover" /> : (customer.name?.[0]?.toUpperCase() || 'C')}
+                              </button>
                               <div>
                                     <p className="text-base font-bold">{customer.name}</p>
                                     <p className="text-xs text-slate-500">{customer.phone}</p>
@@ -215,6 +216,27 @@ export default function CustomerKhataPage({ params }) {
                   <div className={`p-4 ${headerBg} border-t ${borderCol} text-center`}>
                         <p className="text-[10px] text-slate-400 font-medium">This is a digital khata powered by InfraCredit</p>
                   </div>
+
+                  {/* WHATSAPP STYLE PROFILE VIEWER MODAL */}
+                  {viewingProfile && (
+                        <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
+                              <button onClick={() => setViewingProfile(null)} className="absolute top-6 right-6 text-white text-3xl font-light hover:rotate-90 transition-transform">✕</button>
+                              <div className="w-full max-w-sm flex flex-col items-center space-y-6">
+                                    <div className="w-64 h-64 rounded-[40px] bg-emerald-600 flex items-center justify-center text-7xl font-black text-white shadow-2xl overflow-hidden border-4 border-white/10">
+                                          {viewingProfile.avatarUrl ? <img src={viewingProfile.avatarUrl} className="w-full h-full object-cover" /> : (viewingProfile.name?.[0]?.toUpperCase() || 'C')}
+                                    </div>
+                                    <div className="text-center space-y-2">
+                                          <h2 className="text-3xl font-black text-white">{viewingProfile.name}</h2>
+                                          <p className="text-emerald-500 font-bold uppercase tracking-widest text-sm">{viewingProfile.sub}</p>
+                                    </div>
+                              </div>
+                        </div>
+                  )}
+
+                  <style jsx global>{`
+                        @keyframes scale-up { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+                        .animate-in { animation: scale-up 0.2s ease-out; }
+                  `}</style>
             </div>
       );
 }

@@ -20,6 +20,7 @@ export default function CustomerDashboard() {
       const [activePage, setActiveTab] = useState('home'); // home, profile
       const [profileData, setProfileData] = useState({ name: '', avatarUrl: '' });
       const [passwords, setPasswords] = useState({ newPassword: '', confirmPassword: '' });
+      const [viewingProfile, setViewingProfile] = useState(null); // To view owner or customer profile
 
       useEffect(() => {
             const savedTheme = localStorage.getItem('theme') || 'light';
@@ -130,7 +131,7 @@ export default function CustomerDashboard() {
                               <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                                     {isDark ? <SunIcon /> : <MoonIcon />}
                               </button>
-                              <button onClick={() => setActiveTab(activePage === 'home' ? 'profile' : 'home')} className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-black text-white shadow-md overflow-hidden border border-emerald-500">
+                              <button onClick={() => setViewingProfile({ name: profileData.name, avatarUrl: profileData.avatarUrl, sub: 'Customer Profile' })} className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-black text-white shadow-md overflow-hidden border border-emerald-500">
                                     {profileData.avatarUrl ? <img src={profileData.avatarUrl} className="w-full h-full object-cover" /> : (activePage === 'home' ? 'P' : '🏠')}
                               </button>
                         </div>
@@ -151,15 +152,18 @@ export default function CustomerDashboard() {
                                           </div>
                                           <div className="space-y-3">
                                                 {filteredKhatas.map((k) => (
-                                                      <button key={k._id} onClick={() => setSelectedKhata(k)} className={`w-full p-5 rounded-[28px] border flex justify-between items-center active:scale-[0.97] transition-all shadow-sm ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'}`}>
-                                                            <div className="text-left flex items-center gap-4">
-                                                                  <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 font-black text-lg overflow-hidden">
+                                                      <div key={k._id} className={`w-full p-5 rounded-[28px] border flex justify-between items-center transition-all shadow-sm ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'}`}>
+                                                            <div className="text-left flex items-center gap-4 flex-1">
+                                                                  <button onClick={(e) => { e.stopPropagation(); setViewingProfile({ name: k.ownerId.shopName, avatarUrl: k.ownerId.avatarUrl, sub: k.ownerId.ownerName, phone: k.ownerId.phone }); }} className="w-12 h-12 rounded-full bg-emerald-600 flex items-center justify-center text-white font-black text-lg overflow-hidden shadow-inner">
                                                                         {k.ownerId.avatarUrl ? <img src={k.ownerId.avatarUrl} className="w-full h-full object-cover" /> : k.ownerId.shopName[0].toUpperCase()}
-                                                                  </div>
-                                                                  <div><p className="text-base font-black">{k.ownerId.shopName}</p><p className="text-[10px] opacity-50 font-bold uppercase tracking-widest">{k.ownerId.ownerName}</p></div>
+                                                                  </button>
+                                                                  <button onClick={() => setSelectedKhata(k)} className="flex-1 text-left">
+                                                                        <p className="text-base font-black">{k.ownerId.shopName}</p>
+                                                                        <p className="text-[10px] opacity-50 font-bold uppercase tracking-widest">{k.ownerId.ownerName}</p>
+                                                                  </button>
                                                             </div>
                                                             <div className="text-right"><p className={`text-xl font-black ${k.currentDue > 0 ? 'text-amber-500' : 'text-emerald-600'}`}>₹{k.currentDue}</p></div>
-                                                      </button>
+                                                      </div>
                                                 ))}
                                           </div>
                                     </div>
@@ -167,9 +171,9 @@ export default function CustomerDashboard() {
                                     <div className="flex flex-col h-full bg-white dark:bg-slate-900">
                                           <div className={`p-4 border-b flex items-center gap-4 sticky top-0 z-10 ${headerBg}`}>
                                                 <button onClick={() => setSelectedKhata(null)} className="text-2xl opacity-60">←</button>
-                                                <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-black text-white overflow-hidden">
+                                                <button onClick={() => setViewingProfile({ name: selectedKhata.ownerId.shopName, avatarUrl: selectedKhata.ownerId.avatarUrl, sub: selectedKhata.ownerId.ownerName, phone: selectedKhata.ownerId.phone })} className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-black text-white overflow-hidden shadow-md">
                                                       {selectedKhata.ownerId.avatarUrl ? <img src={selectedKhata.ownerId.avatarUrl} className="w-full h-full object-cover" /> : selectedKhata.ownerId.shopName[0].toUpperCase()}
-                                                </div>
+                                                </button>
                                                 <div><p className="text-base font-black">{selectedKhata.ownerId.shopName}</p><p className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest">Online Now</p></div>
                                           </div>
                                           <div className="bg-amber-500/10 border-b border-amber-500/20 py-4 px-6 flex justify-between items-center">
@@ -228,9 +232,36 @@ export default function CustomerDashboard() {
                         </nav>
                   )}
 
+                  {/* WHATSAPP STYLE PROFILE VIEWER MODAL */}
+                  {viewingProfile && (
+                        <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
+                              <button onClick={() => setViewingProfile(null)} className="absolute top-6 right-6 text-white text-3xl font-light hover:rotate-90 transition-transform">✕</button>
+                              <div className="w-full max-w-sm flex flex-col items-center space-y-6">
+                                    <div className="w-64 h-64 rounded-[40px] bg-emerald-600 flex items-center justify-center text-7xl font-black text-white shadow-2xl overflow-hidden border-4 border-white/10">
+                                          {viewingProfile.avatarUrl ? <img src={viewingProfile.avatarUrl} className="w-full h-full object-cover" /> : viewingProfile.name?.[0]?.toUpperCase()}
+                                    </div>
+                                    <div className="text-center space-y-2">
+                                          <h2 className="text-3xl font-black text-white">{viewingProfile.name}</h2>
+                                          <p className="text-emerald-500 font-bold uppercase tracking-widest text-sm">{viewingProfile.sub}</p>
+                                          {viewingProfile.phone && (
+                                                <div className="mt-4 flex gap-4">
+                                                      <a href={`tel:${viewingProfile.phone}`} className="p-4 rounded-2xl bg-white/10 text-white hover:bg-white/20 transition-colors">
+                                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                                                      </a>
+                                                      <a href={`https://wa.me/91${viewingProfile.phone}`} target="_blank" className="p-4 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-500 transition-colors">
+                                                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.353-.883-.788-1.48-1.76-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.13.57-.074 1.758-.706 2.006-1.388.248-.682.248-1.265.174-1.388-.074-.124-.272-.198-.57-.347m-4.821 7.454c-1.893 0-3.748-.508-5.37-1.467l-.385-.227-3.991 1.046 1.065-3.891-.249-.396C2.75 15.305 2.1 13.484 2.1 11.59c0-5.243 4.265-9.508 9.51-9.508 2.54 0 4.928.989 6.72 2.782 1.792 1.792 2.782 4.18 2.782 6.726 0 5.243-4.265 9.508-9.51 9.508zM12.002 0C5.373 0 0 5.373 0 12c0 2.123.55 4.197 1.594 6.02L0 24l6.135-1.61c1.746.953 3.713 1.456 5.86 1.456 6.626 0 12-5.374 12-12 0-3.212-1.25-6.232-3.515-8.497C18.232 1.25 15.213 0 12.002 0z"/></svg>
+                                                      </a>
+                                                </div>
+                                          )}
+                                    </div>
+                              </div>
+                        </div>
+                  )}
+
                   <style jsx global>{`
                         @keyframes scale-up { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
                         .no-scrollbar::-webkit-scrollbar { display: none; }
+                        .animate-in { animation: scale-up 0.2s ease-out; }
                   `}</style>
             </div>
       );
