@@ -595,7 +595,7 @@ export default function OwnerDashboard() {
                                     <UsersIcon />
                                     <span className="text-[10px] font-bold mt-1">Khatas</span>
                               </button>
-                              <button onClick={() => setActiveTab('analytics')} className={`flex flex-col items-center transition-all ${activePage === 'analytics' ? 'text-emerald-500 scale-110' : 'opacity-40'}`}>
+                              <button onClick={() => setActiveTab('analytics')} className={`flex flex-col items-center transition-all ${activeTab === 'analytics' ? 'text-emerald-500 scale-110' : 'opacity-40'}`}>
                                     <ChartIcon />
                                     <span className="text-[10px] font-bold mt-1">Analytics</span>
                               </button>
