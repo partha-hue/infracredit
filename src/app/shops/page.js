@@ -312,10 +312,27 @@ export default function OwnerDashboard() {
 
       const handleGeneratePdf = async (phone, type) => {
             setPdfLoading(true);
+            setPdfBlobUrl(null);
             try {
-                  const res = await fetch(`/api/reports/${type}/${encodeURIComponent(phone)}`, {
-                        headers: { Authorization: `Bearer ${getToken()}` }
-                  });
+                  let res;
+                  if (type === 'ledger') {
+                        res = await fetch(`/api/customers/${encodeURIComponent(phone)}/pdf`, {
+                              headers: { Authorization: `Bearer ${getToken()}` }
+                        });
+                  } else {
+                        res = await fetch('/api/invoice/gst', {
+                              method: 'POST',
+                              headers: { 
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${getToken()}` 
+                              },
+                              body: JSON.stringify({
+                                    customer: selected?.name,
+                                    amount: selected?.currentDue
+                              })
+                        });
+                  }
+
                   if (!res.ok) throw new Error('Failed to generate PDF');
                   const blob = await res.blob();
                   const url = window.URL.createObjectURL(blob);
@@ -326,6 +343,42 @@ export default function OwnerDashboard() {
             } finally {
                   setPdfLoading(false);
             }
+      };
+
+      const handleDownloadOrSharePdf = async () => {
+            if (!pdfBlobUrl) return;
+            
+            const fileName = `${pdfType === 'invoice' ? 'Invoice' : 'Statement'}_${selected?.name || 'Customer'}.pdf`;
+
+            // Production Safe: Try navigator.share for mobile/APK environments
+            if (navigator.share && navigator.canShare) {
+                  try {
+                        const response = await fetch(pdfBlobUrl);
+                        const blob = await response.blob();
+                        const file = new File([blob], fileName, { type: 'application/pdf' });
+                        
+                        if (navigator.canShare({ files: [file] })) {
+                              await navigator.share({
+                                    files: [file],
+                                    title: 'Khata Statement',
+                                    text: 'Please find the attached PDF statement.'
+                              });
+                              showToast('Sharing statement...');
+                              return;
+                        }
+                  } catch (err) {
+                        console.error('Share failed', err);
+                  }
+            }
+            
+            // Fallback for web or non-sharing environments
+            const link = document.createElement('a');
+            link.href = pdfBlobUrl;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('Starting download...');
       };
 
       const isDark = theme === 'dark';
@@ -382,7 +435,7 @@ export default function OwnerDashboard() {
                                           {filteredCustomers.map(c => (
                                                 <div key={c.phone} className={`group flex items-center px-4 py-4 border-b transition-all ${isDark ? 'border-slate-800 hover:bg-slate-900' : 'border-slate-50 hover:bg-slate-50'} ${selected?.phone === c.phone ? (isDark ? 'bg-emerald-900/20 border-l-4 border-l-emerald-600' : 'bg-emerald-50 border-l-4 border-l-emerald-600') : ''}`}>
                                                       <div className="flex-1 text-left min-w-0 flex items-center gap-4">
-                                                            <button onClick={(e) => { e.stopPropagation(); setViewingProfile({ name: c.name, avatarUrl: c.avatarUrl, sub: 'Customer Profile', phone: c.phone, type: 'customer' }); }} className="w-12 h-12 rounded-full bg-emerald-600 flex items-center justify-center font-black text-white shadow-md overflow-hidden flex-shrink-0">
+                                                            <button onClick={(e) => { e.stopPropagation(); setViewingProfile({ name: c.name, avatarUrl: c.avatarUrl, sub: 'Customer Profile', phone: c.phone, type: 'customer', bio: 'InfraCredit Verified Customer' }); }} className="w-12 h-12 rounded-full bg-emerald-600 flex items-center justify-center font-black text-white shadow-md overflow-hidden flex-shrink-0">
                                                                   {c.avatarUrl ? <img src={c.avatarUrl} className="w-full h-full object-cover" /> : c.name[0].toUpperCase()}
                                                             </button>
                                                             <button onClick={() => { setSelected(c); setShowChatOnMobile(true); }} className="flex-1 text-left min-w-0">
@@ -415,7 +468,7 @@ export default function OwnerDashboard() {
                                     <div className={`px-4 py-3 border-b flex justify-between items-center sticky top-0 z-10 shadow-sm ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-100'}`}>
                                           <div className="flex items-center gap-3">
                                                 {isMobileView && <button onClick={() => setShowChatOnMobile(false)} className="text-xl mr-1">←</button>}
-                                                <button onClick={() => setViewingProfile({ name: selected.name, avatarUrl: selected.avatarUrl, sub: 'Customer Profile', phone: selected.phone, type: 'customer' })} className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-black text-white shadow-md overflow-hidden">
+                                                <button onClick={() => setViewingProfile({ name: selected.name, avatarUrl: selected.avatarUrl, sub: 'Customer Profile', phone: selected.phone, type: 'customer', bio: 'InfraCredit Verified Customer' })} className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-black text-white shadow-md overflow-hidden">
                                                       {selected.avatarUrl ? <img src={selected.avatarUrl} className="w-full h-full object-cover" /> : selected.name[0].toUpperCase()}
                                                 </button>
                                                 <div>
@@ -425,7 +478,7 @@ export default function OwnerDashboard() {
                                           </div>
                                           <div className="flex gap-2">
                                                 <button onClick={sendWhatsAppReminder} className={`p-2.5 rounded-full shadow-md active:scale-90 transition-all ${isDark ? 'bg-slate-800 text-emerald-400' : 'bg-emerald-100 text-emerald-700'}`}><WhatsAppIcon /></button>
-                                                <button onClick={() => setPdfModalOpen(true)} className={`p-2.5 rounded-full shadow-md active:scale-90 transition-all ${isDark ? 'bg-slate-800 text-sky-400' : 'bg-sky-100 text-sky-700'}`}><FileIcon /></button>
+                                                <button onClick={() => { setPdfModalOpen(true); setPdfBlobUrl(null); }} className={`p-2.5 rounded-full shadow-md active:scale-90 transition-all ${isDark ? 'bg-slate-800 text-sky-400' : 'bg-sky-100 text-sky-700'}`}><FileIcon /></button>
                                           </div>
                                     </div>
 
@@ -542,7 +595,7 @@ export default function OwnerDashboard() {
                                     <UsersIcon />
                                     <span className="text-[10px] font-bold mt-1">Khatas</span>
                               </button>
-                              <button onClick={() => setActiveTab('analytics')} className={`flex flex-col items-center transition-all ${activeTab === 'analytics' ? 'text-emerald-500 scale-110' : 'opacity-40'}`}>
+                              <button onClick={() => setActiveTab('analytics')} className={`flex flex-col items-center transition-all ${activePage === 'analytics' ? 'text-emerald-500 scale-110' : 'opacity-40'}`}>
                                     <ChartIcon />
                                     <span className="text-[10px] font-bold mt-1">Analytics</span>
                               </button>
@@ -572,15 +625,13 @@ export default function OwnerDashboard() {
                                           {/* Detailed View Section */}
                                           <div className="mt-4 w-full bg-white/5 backdrop-blur-md rounded-3xl p-6 text-left space-y-4 border border-white/10">
                                                 <div>
+                                                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">About / Bio</p>
+                                                      <p className="text-white font-medium italic leading-relaxed text-sm">"{viewingProfile.bio || 'Available on InfraCredit'}"</p>
+                                                </div>
+                                                <div>
                                                       <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Phone Number</p>
                                                       <p className="text-white font-bold">{viewingProfile.phone || 'N/A'}</p>
                                                 </div>
-                                                {viewingProfile.type === 'customer' && (
-                                                      <div>
-                                                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Account Status</p>
-                                                            <p className="text-emerald-400 font-bold">Active Customer</p>
-                                                      </div>
-                                                )}
                                                 <div className="flex gap-4 pt-2">
                                                       <a href={`tel:${viewingProfile.phone}`} className="flex-1 p-4 rounded-2xl bg-white/10 text-white hover:bg-white/20 transition-colors flex items-center justify-center gap-2">
                                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
@@ -615,7 +666,10 @@ export default function OwnerDashboard() {
                                                 </button>
                                           ) : (
                                                 <div className="flex flex-col gap-3">
-                                                      <a href={pdfBlobUrl} download={`${pdfType === 'invoice' ? 'Invoice' : 'Ledger'}.pdf`} className="w-full bg-sky-600 text-white py-4 rounded-2xl font-black text-center shadow-lg active:scale-95 transition-all">Download PDF</a>
+                                                      <button onClick={handleDownloadOrSharePdf} className="w-full bg-sky-600 text-white py-4 rounded-2xl font-black text-center shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2">
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                                            Download / Share
+                                                      </button>
                                                       <button onClick={() => sendWhatsAppReminder()} className="w-full bg-emerald-500 text-white py-3 rounded-2xl font-bold text-sm">Share on WhatsApp</button>
                                                 </div>
                                           )}

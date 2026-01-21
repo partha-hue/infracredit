@@ -36,16 +36,26 @@ export async function GET(req, { params }) {
       try {
             await dbConnect();
             const token = getToken(req);
-            if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-            let decoded;
-            try { decoded = jwt.verify(token, process.env.JWT_SECRET); } catch { return NextResponse.json({ error: 'Invalid token' }, { status: 401 }); }
-
-            const ownerId = toObjectId(decoded.id);
+            
+            // For public khata page, token might be null
             const rawParam = extractPhoneFromReq(req, params);
             let normalizedPhone = normalizeIndianMobile(rawParam) || rawParam;
 
-            const customer = await Customer.findOne({ ownerId, phone: normalizedPhone, isDeleted: false });
+            let query = { phone: normalizedPhone, isDeleted: false };
+            
+            if (token) {
+                  try {
+                        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                        // If it's an owner, they can only see their own customers
+                        if (decoded.role === 'owner' || !decoded.role) {
+                              query.ownerId = toObjectId(decoded.id);
+                        }
+                  } catch (e) {
+                        // Invalid token, treat as public or unauthorized if sensitive
+                  }
+            }
+
+            const customer = await Customer.findOne(query).populate('ownerId', 'shopName ownerName avatarUrl phone bio');
             if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
 
             return NextResponse.json(customer, { status: 200 });

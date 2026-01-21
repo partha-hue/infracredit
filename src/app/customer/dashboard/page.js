@@ -145,7 +145,7 @@ export default function CustomerDashboard() {
                               <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                                     {isDark ? <SunIcon /> : <MoonIcon />}
                               </button>
-                              <button onClick={() => setViewingProfile({ name: profileData.name, avatarUrl: profileData.avatarUrl, sub: 'Customer Profile', phone: profileData.phone })} className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-black text-white shadow-md overflow-hidden border border-emerald-500">
+                              <button onClick={() => setViewingProfile({ name: profileData.name, avatarUrl: profileData.avatarUrl, sub: 'Customer Profile', phone: profileData.phone, bio: 'Customer on InfraCredit' })} className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-black text-white shadow-md overflow-hidden border border-emerald-500">
                                     {profileData.avatarUrl ? <img src={profileData.avatarUrl} className="w-full h-full object-cover" /> : (activePage === 'home' ? 'P' : '🏠')}
                               </button>
                         </div>
@@ -168,7 +168,7 @@ export default function CustomerDashboard() {
                                                 {filteredKhatas.map((k) => (
                                                       <div key={k._id} className={`w-full p-5 rounded-[28px] border flex justify-between items-center transition-all shadow-sm ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'}`}>
                                                             <div className="text-left flex items-center gap-4 flex-1">
-                                                                  <button onClick={(e) => { e.stopPropagation(); setViewingProfile({ name: k.ownerId.shopName, avatarUrl: k.ownerId.avatarUrl, sub: k.ownerId.ownerName, phone: k.ownerId.phone }); }} className="w-12 h-12 rounded-full bg-emerald-600 flex items-center justify-center text-white font-black text-lg overflow-hidden shadow-inner">
+                                                                  <button onClick={(e) => { e.stopPropagation(); setViewingProfile({ name: k.ownerId.shopName, avatarUrl: k.ownerId.avatarUrl, sub: k.ownerId.ownerName, phone: k.ownerId.phone, bio: k.ownerId.bio }); }} className="w-12 h-12 rounded-full bg-emerald-600 flex items-center justify-center text-white font-black text-lg overflow-hidden shadow-inner">
                                                                         {k.ownerId.avatarUrl ? <img src={k.ownerId.avatarUrl} className="w-full h-full object-cover" /> : k.ownerId.shopName[0].toUpperCase()}
                                                                   </button>
                                                                   <button onClick={() => setSelectedKhata(k)} className="flex-1 text-left">
@@ -185,7 +185,7 @@ export default function CustomerDashboard() {
                                     <div className="flex flex-col h-full bg-white dark:bg-slate-900">
                                           <div className={`p-4 border-b flex items-center gap-4 sticky top-0 z-10 ${headerBg}`}>
                                                 <button onClick={() => setSelectedKhata(null)} className="text-2xl opacity-60">←</button>
-                                                <button onClick={() => setViewingProfile({ name: selectedKhata.ownerId.shopName, avatarUrl: selectedKhata.ownerId.avatarUrl, sub: selectedKhata.ownerId.ownerName, phone: selectedKhata.ownerId.phone })} className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-black text-white overflow-hidden shadow-md">
+                                                <button onClick={() => setViewingProfile({ name: selectedKhata.ownerId.shopName, avatarUrl: selectedKhata.ownerId.avatarUrl, sub: selectedKhata.ownerId.ownerName, phone: selectedKhata.ownerId.phone, bio: selectedKhata.ownerId.bio })} className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-black text-white overflow-hidden shadow-md">
                                                       {selectedKhata.ownerId.avatarUrl ? <img src={selectedKhata.ownerId.avatarUrl} className="w-full h-full object-cover" /> : selectedKhata.ownerId.shopName[0].toUpperCase()}
                                                 </button>
                                                 <div><p className="text-base font-black">{selectedKhata.ownerId.shopName}</p><p className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest">Online Now</p></div>
@@ -261,12 +261,12 @@ export default function CustomerDashboard() {
                                           {/* Detailed View Section */}
                                           <div className="mt-4 w-full bg-white/5 backdrop-blur-md rounded-3xl p-6 text-left space-y-4 border border-white/10">
                                                 <div>
-                                                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Contact Info</p>
-                                                      <p className="text-white font-bold">{viewingProfile.phone || 'N/A'}</p>
+                                                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">About / Bio</p>
+                                                      <p className="text-white font-medium italic leading-relaxed text-sm">"{viewingProfile.bio || 'Available on InfraCredit'}"</p>
                                                 </div>
                                                 <div>
-                                                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">About</p>
-                                                      <p className="text-emerald-400 font-bold">Verified Professional on InfraCredit</p>
+                                                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Contact Info</p>
+                                                      <p className="text-white font-bold">{viewingProfile.phone || 'N/A'}</p>
                                                 </div>
                                                 <div className="flex gap-4 pt-2">
                                                       <a href={`tel:${viewingProfile.phone}`} className="flex-1 p-4 rounded-2xl bg-white/10 text-white hover:bg-white/20 transition-colors flex items-center justify-center gap-2">

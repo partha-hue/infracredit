@@ -89,8 +89,8 @@ export async function PATCH(req) {
 
             // Handle Profile Update
             const updates = {};
-            ['ownerName', 'shopName', 'phone', 'avatarUrl', 'email'].forEach(f => {
-                  if (body[f]) updates[f] = body[f];
+            ['ownerName', 'shopName', 'phone', 'avatarUrl', 'email', 'bio'].forEach(f => {
+                  if (body[f] !== undefined) updates[f] = body[f];
             });
 
             if (updates.email) {

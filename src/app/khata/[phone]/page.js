@@ -155,12 +155,18 @@ export default function CustomerKhataPage({ params }) {
                   {/* APP HEADER */}
                   <div className={`flex items-center justify-between px-4 py-3 ${headerBg} border-b ${borderCol} sticky top-0 z-10 shadow-sm`}>
                         <div className="flex items-center gap-3">
-                              <button onClick={() => setViewingProfile({ name: customer.name, avatarUrl: customer.avatarUrl, sub: 'Customer Khata', phone: customer.phone })} className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold text-white shadow-sm overflow-hidden">
-                                    {customer.avatarUrl ? <img src={customer.avatarUrl} className="w-full h-full object-cover" /> : (customer.name?.[0]?.toUpperCase() || 'C')}
+                              <button onClick={() => setViewingProfile({ 
+                                    name: customer.ownerId?.shopName || 'Shop Profile', 
+                                    avatarUrl: customer.ownerId?.avatarUrl, 
+                                    sub: customer.ownerId?.ownerName || 'Owner', 
+                                    phone: customer.ownerId?.phone,
+                                    bio: customer.ownerId?.bio
+                              })} className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold text-white shadow-sm overflow-hidden">
+                                    {customer.ownerId?.avatarUrl ? <img src={customer.ownerId.avatarUrl} className="w-full h-full object-cover" /> : (customer.ownerId?.shopName?.[0]?.toUpperCase() || 'S')}
                               </button>
                               <div>
-                                    <p className="text-base font-bold">{customer.name}</p>
-                                    <p className="text-xs text-slate-500">{customer.phone}</p>
+                                    <p className="text-base font-bold">{customer.ownerId?.shopName || 'Shop'}</p>
+                                    <p className="text-xs text-slate-500">Khata for {customer.name}</p>
                               </div>
                         </div>
 
@@ -197,7 +203,7 @@ export default function CustomerKhataPage({ params }) {
                                           <div className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${isCredit ? bubbleCredit : bubblePayment}`}>
                                                 <div className="flex justify-between items-center mb-1">
                                                       <span className="text-[10px] font-black uppercase tracking-tighter opacity-70">
-                                                            {isCredit ? 'Udhaar (Taken)' : 'Payment (Given)'}
+                                                            {isCredit ? 'Credit (Taken)' : 'Payment (Given)'}
                                                       </span>
                                                       <span className="text-[9px] opacity-60 font-medium">
                                                             {new Date(t.date || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -235,7 +241,7 @@ export default function CustomerKhataPage({ params }) {
                               <button onClick={() => setViewingProfile(null)} className="absolute top-6 right-6 text-white text-3xl font-light hover:rotate-90 transition-transform">✕</button>
                               <div className="w-full max-w-sm flex flex-col items-center space-y-6">
                                     <div className="w-64 h-64 rounded-[40px] bg-emerald-600 flex items-center justify-center text-7xl font-black text-white shadow-2xl overflow-hidden border-4 border-white/10">
-                                          {viewingProfile.avatarUrl ? <img src={viewingProfile.avatarUrl} className="w-full h-full object-cover" /> : (viewingProfile.name?.[0]?.toUpperCase() || 'C')}
+                                          {viewingProfile.avatarUrl ? <img src={viewingProfile.avatarUrl} className="w-full h-full object-cover" /> : (viewingProfile.name?.[0]?.toUpperCase() || 'S')}
                                     </div>
                                     <div className="text-center space-y-2">
                                           <h2 className="text-3xl font-black text-white">{viewingProfile.name}</h2>
@@ -244,12 +250,12 @@ export default function CustomerKhataPage({ params }) {
                                           {/* Detailed View Section */}
                                           <div className="mt-4 w-full bg-white/5 backdrop-blur-md rounded-3xl p-6 text-left space-y-4 border border-white/10">
                                                 <div>
-                                                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Phone Number</p>
-                                                      <p className="text-white font-bold">{viewingProfile.phone || 'N/A'}</p>
+                                                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">About / Bio</p>
+                                                      <p className="text-white font-medium italic leading-relaxed text-sm">"{viewingProfile.bio || 'Available on InfraCredit'}"</p>
                                                 </div>
                                                 <div>
-                                                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Status</p>
-                                                      <p className="text-emerald-400 font-bold">Verified Khata Profile</p>
+                                                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Phone Number</p>
+                                                      <p className="text-white font-bold">{viewingProfile.phone || 'N/A'}</p>
                                                 </div>
                                                 <div className="flex gap-4 pt-2">
                                                       <a href={`tel:${viewingProfile.phone}`} className="flex-1 p-4 rounded-2xl bg-white/10 text-white hover:bg-white/20 transition-colors flex items-center justify-center gap-2">

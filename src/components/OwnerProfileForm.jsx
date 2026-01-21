@@ -8,6 +8,7 @@ export default function OwnerProfileForm({ initialOwner, deletedCustomers, isDar
             email: initialOwner.email || '',
             phone: initialOwner.phone || '',
             avatarUrl: initialOwner.avatarUrl || '',
+            bio: initialOwner.bio || '',
       });
       const [passwords, setPasswords] = useState({
             currentPassword: '',
@@ -166,6 +167,15 @@ export default function OwnerProfileForm({ initialOwner, deletedCustomers, isDar
                                           <label className={labelClass}>Owner Name</label>
                                           <input className={inputClass} value={form.ownerName} onChange={(e) => setForm((p) => ({ ...p, ownerName: e.target.value }))} />
                                     </div>
+                              </div>
+                              <div>
+                                    <label className={labelClass}>Bio / Business Tagline</label>
+                                    <textarea 
+                                          className={`${inputClass} min-h-[80px]`} 
+                                          value={form.bio} 
+                                          placeholder="Write something about your business..."
+                                          onChange={(e) => setForm((p) => ({ ...p, bio: e.target.value }))} 
+                                    />
                               </div>
                               <div>
                                     <label className={labelClass}>Phone Number</label>

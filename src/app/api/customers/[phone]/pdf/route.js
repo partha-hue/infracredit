@@ -20,25 +20,11 @@ function toObjectId(id) {
 
 function normalizeIndianMobile(rawPhone) {
       if (!rawPhone) return null;
-      const original = String(rawPhone);
-      let digits = original.replace(/\D/g, '');
+      let digits = String(rawPhone).replace(/\D/g, '');
       if (digits.startsWith('0091') && digits.length - 4 >= 10) digits = digits.slice(4);
       else if (digits.startsWith('91') && digits.length - 2 >= 10) digits = digits.slice(2);
       else if (digits.startsWith('0') && digits.length - 1 >= 10) digits = digits.slice(1);
       return digits.length === 10 ? digits : null;
-}
-
-function extractPhoneFromReq(req, params) {
-      if (params && params.phone) return params.phone;
-      try {
-            const url = new URL(req.url);
-            const parts = url.pathname.split('/').filter(Boolean);
-            for (let i = 0; i < parts.length; i++) {
-                  const digits = parts[i].replace(/\D/g, '');
-                  if (digits.length >= 6) return parts[i];
-            }
-            return parts[parts.length - 2] || null;
-      } catch (e) { return null; }
 }
 
 export async function GET(req, { params }) {
@@ -55,55 +41,84 @@ export async function GET(req, { params }) {
             }
 
             const ownerId = toObjectId(decoded.id);
-            const rawParam = extractPhoneFromReq(req, params);
+            // Handle both Next.js 14 and 15+ param styles
+            const resolvedParams = await params;
+            const rawParam = resolvedParams.phone;
+            
             if (!rawParam) return NextResponse.json({ error: 'Phone missing' }, { status: 400 });
 
             const normalizedPhone = normalizeIndianMobile(rawParam) || rawParam;
-            const customer = await Customer.findOne({ ownerId, $or: [{ phone: normalizedPhone }, { phone: rawParam }] });
+            const customer = await Customer.findOne({ 
+                  ownerId, 
+                  $or: [{ phone: normalizedPhone }, { phone: rawParam }],
+                  isDeleted: false
+            }).populate('ownerId', 'shopName ownerName');
 
-            if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 400 });
+            if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
 
-            // Use pdf-lib directly because pdfkit is failing due to missing system fonts (AFM) on Vercel
+            // Use pdf-lib
             const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
             const pdfDoc = await PDFDocument.create();
             let page = pdfDoc.addPage([595, 842]); // A4
-            const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+            const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
             const fontReg = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-            page.drawText('InfraCredit Statement', { x: 50, y: 800, size: 20, font, color: rgb(0.06, 0.65, 0.63) });
-            page.drawText(`Customer: ${customer.name || 'N/A'}`, { x: 50, y: 770, size: 12, font: fontReg });
-            page.drawText(`Phone: ${customer.phone}`, { x: 50, y: 755, size: 12, font: fontReg });
-            page.drawText(`Current Due: Rs. ${customer.currentDue || 0}`, { x: 50, y: 740, size: 12, font });
+            // Header
+            page.drawText('InfraCredit Statement', { x: 50, y: 800, size: 22, font: fontBold, color: rgb(0.06, 0.65, 0.63) });
+            page.drawText(customer.ownerId?.shopName || 'Business Statement', { x: 50, y: 775, size: 14, font: fontBold });
+            
+            // Info Section
+            page.drawText(`Customer: ${customer.name}`, { x: 50, y: 740, size: 12, font: fontReg });
+            page.drawText(`Phone: ${customer.phone}`, { x: 50, y: 725, size: 12, font: fontReg });
+            page.drawText(`Date: ${new Date().toLocaleDateString()}`, { x: 400, y: 740, size: 12, font: fontReg });
+            page.drawText(`Total Due: Rs. ${customer.currentDue}`, { x: 400, y: 725, size: 12, font: fontBold, color: rgb(0.8, 0.1, 0.1) });
 
-            let y = 710;
-            page.drawText('Date', { x: 50, y, size: 11, font });
-            page.drawText('Type', { x: 150, y, size: 11, font });
-            page.drawText('Amount', { x: 230, y, size: 11, font });
-            page.drawText('Note', { x: 320, y, size: 11, font });
-            y -= 20;
+            // Table Header
+            let y = 680;
+            page.drawRectangle({ x: 50, y: y - 5, width: 500, height: 25, color: rgb(0.95, 0.95, 0.95) });
+            page.drawText('Date', { x: 60, y, size: 11, font: fontBold });
+            page.drawText('Description', { x: 150, y, size: 11, font: fontBold });
+            page.drawText('Type', { x: 350, y, size: 11, font: fontBold });
+            page.drawText('Amount', { x: 450, y, size: 11, font: fontBold });
+            y -= 30;
 
-            (customer.ledger || []).forEach((e) => {
-                  if (y < 50) {
-                        page = pdfDoc.addPage();
-                        y = 800;
+            // Transactions
+            const ledger = customer.ledger || [];
+            for (const item of ledger) {
+                  if (y < 60) {
+                        page = pdfDoc.addPage([595, 842]);
+                        y = 780;
                   }
-                  const date = new Date(e.createdAt || e.date).toLocaleDateString();
-                  page.drawText(date, { x: 50, y, size: 10, font: fontReg });
-                  page.drawText((e.type || '').toUpperCase(), { x: 150, y, size: 10, font: fontReg });
-                  page.drawText(`Rs. ${e.amount}`, { x: 230, y, size: 10, font: fontReg });
-                  page.drawText(e.note || '-', { x: 320, y, size: 10, font: fontReg });
-                  y -= 15;
+                  const dateStr = new Date(item.createdAt || item.date).toLocaleDateString('en-IN');
+                  page.drawText(dateStr, { x: 60, y, size: 10, font: fontReg });
+                  page.drawText(item.note || '-', { x: 150, y, size: 10, font: fontReg, maxWidth: 180 });
+                  page.drawText(item.type === 'credit' ? 'UDHAAR' : 'PAYMENT', { 
+                        x: 350, y, size: 10, font: fontBold, 
+                        color: item.type === 'credit' ? rgb(0.8, 0.4, 0) : rgb(0.1, 0.6, 0.1) 
+                  });
+                  page.drawText(`Rs. ${Math.abs(item.amount)}`, { x: 450, y, size: 10, font: fontBold });
+                  
+                  y -= 20;
+                  // Horizontal line
+                  page.drawLine({ start: { x: 50, y: y + 5 }, end: { x: 550, y: y + 5 }, thickness: 0.5, color: rgb(0.9, 0.9, 0.9) });
+            }
+
+            // Footer
+            page.drawText('Thank you for your business. Generated via InfraCredit App.', { 
+                  x: 50, y: 30, size: 8, font: fontReg, color: rgb(0.5, 0.5, 0.5) 
             });
 
             const pdfBytes = await pdfDoc.save();
-            return new NextResponse(Buffer.from(pdfBytes), {
+            
+            return new NextResponse(pdfBytes, {
                   headers: {
                         'Content-Type': 'application/pdf',
-                        'Content-Disposition': `attachment; filename=ledger-${customer.phone}.pdf`,
+                        'Content-Disposition': `attachment; filename="Ledger_${customer.phone}.pdf"`,
+                        'Cache-Control': 'no-store, max-age=0'
                   },
             });
       } catch (err) {
-            console.error('PDF error:', err);
-            return NextResponse.json({ error: err.message }, { status: 500 });
+            console.error('PDF generation error:', err);
+            return NextResponse.json({ error: 'Failed to generate PDF' }, { status: 500 });
       }
 }
