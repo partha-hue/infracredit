@@ -15,7 +15,7 @@ class MainActivity : BridgeActivity() {
         
         // Make Status Bar and Navigation Bar transparent
         window.apply {
-            addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BARS_BACKGROUNDS)
+            addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
             statusBarColor = Color.TRANSPARENT
             navigationBarColor = Color.TRANSPARENT
         }
