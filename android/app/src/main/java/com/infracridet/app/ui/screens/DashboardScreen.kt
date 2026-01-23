@@ -1,12 +1,15 @@
 package com.infracridet.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -17,51 +20,58 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.infracridet.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    shopName: String,
-    onAddCustomer: () -> Unit,
-    onViewReports: () -> Unit,
     onProfileClick: () -> Unit
 ) {
+    var showProfilePreview by remember { mutableStateOf<Pair<String, String>?>(null) }
+
     Scaffold(
         topBar = {
-            Column(modifier = Modifier.background(Color.White)) {
-                Row(
+            Surface(shadowElevation = 2.dp) {
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .background(Color.White)
+                        .padding(bottom = 8.dp)
                 ) {
-                    Column {
-                        Text(
-                            "InfraPay",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black
-                        )
-                        Text(
-                            "Secure Recharge Service",
-                            fontSize = 12.sp,
-                            color = InfraPayPurple,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                    IconButton(
-                        onClick = onProfileClick,
+                    Row(
                         modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(InfraPayPurple.copy(alpha = 0.1f))
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Person, contentDescription = null, tint = InfraPayPurple)
+                        Column {
+                            Text(
+                                "InfraPay",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1B1B1F)
+                            )
+                            Text(
+                                "Secure Recharge Service",
+                                fontSize = 13.sp,
+                                color = InfraPayPurple,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        IconButton(
+                            onClick = onProfileClick,
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.AccountCircle, 
+                                contentDescription = null, 
+                                modifier = Modifier.size(36.dp),
+                                tint = Color.Gray
+                            )
+                        }
                     }
                 }
             }
@@ -76,7 +86,6 @@ fun DashboardScreen(
                 .padding(padding)
                 .background(Color.White)
         ) {
-            // Service Grid (InfraPay Style)
             item {
                 Text(
                     "Services",
@@ -90,106 +99,160 @@ fun DashboardScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        InfraPayServiceCard("Mobile", Icons.Outlined.Smartphone, MobileBg, MobilePrimary, Modifier.weight(1f))
-                        InfraPayServiceCard("DTH", Icons.Outlined.Tv, DthBg, DthPrimary, Modifier.weight(1f))
+                        ServiceCard("Mobile", Icons.Outlined.Smartphone, MobileBg, MobilePrimary, Modifier.weight(1f))
+                        ServiceCard("DTH", Icons.Outlined.Tv, DthBg, DthPrimary, Modifier.weight(1f))
                     }
                     Spacer(Modifier.height(16.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        InfraPayServiceCard("History", Icons.Outlined.ReceiptLong, HistoryBg, HistoryPrimary, Modifier.weight(1f))
-                        InfraPayServiceCard("Help", Icons.Outlined.HelpOutline, HelpBg, HelpPrimary, Modifier.weight(1f))
+                        ServiceCard("History", Icons.AutoMirrored.Outlined.ReceiptLong, HistoryBg, HistoryPrimary, Modifier.weight(1f))
+                        ServiceCard("Help", Icons.AutoMirrored.Outlined.HelpOutline, HelpBg, HelpPrimary, Modifier.weight(1f))
                     }
                 }
                 
-                // Trusted Service Banner
                 Surface(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    color = Color(0xFFF7F8FF),
+                    color = Color(0xFFF1F4FF),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Default.Verified, 
+                            Icons.Default.VerifiedUser, 
                             contentDescription = null, 
-                            tint = Color(0xFF3F51B5),
-                            modifier = Modifier.size(24.dp)
+                            tint = Color(0xFF1976D2),
+                            modifier = Modifier.size(28.dp)
                         )
                         Spacer(Modifier.width(16.dp))
                         Column {
                             Text("Trusted Service", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                            Text("Secure payments and instant confirmation.", fontSize = 13.sp, color = WhatsAppDarkGray)
+                            Text("Secure payments and instant confirmation.", fontSize = 13.sp, color = Color.Gray)
                         }
                     }
                 }
             }
 
-            // Chat Style Customer List (WhatsApp)
             item {
                 Text(
                     "Recent Transactions",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 8.dp)
+                    modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp)
                 )
             }
 
-            val customers = listOf(
-                "Rahul Kumar" to "Udhaar: ₹450",
-                "Suresh Singh" to "Payment Done",
-                "Amit Patel" to "Udhaar: ₹1,200"
+            val chats = listOf(
+                "Akash" to "7797916160",
+                "Ujjwal Prasad" to "9933082098",
+                "Partha Chakraborty" to "8327692524"
             )
             
-            items(customers) { (name, sub) ->
-                WhatsAppChatItem(name, sub)
+            items(chats) { (name, phone) ->
+                WhatsAppChatStyleItem(
+                    name = name, 
+                    phone = phone,
+                    onImageClick = { showProfilePreview = name to phone }
+                )
             }
         }
+    }
+
+    showProfilePreview?.let { (name, phone) ->
+        WhatsAppProfilePreview(
+            name = name,
+            phone = phone,
+            onDismiss = { showProfilePreview = null }
+        )
     }
 }
 
 @Composable
-fun InfraPayServiceCard(title: String, icon: ImageVector, bgColor: Color, iconColor: Color, modifier: Modifier = Modifier) {
+fun ServiceCard(title: String, icon: ImageVector, bgColor: Color, iconColor: Color, modifier: Modifier) {
     Surface(
         modifier = modifier.height(110.dp),
         color = bgColor,
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(32.dp))
-            Spacer(Modifier.height(12.dp))
-            Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
+            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(34.dp))
+            Spacer(Modifier.height(8.dp))
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
         }
     }
 }
 
 @Composable
-fun WhatsAppChatItem(name: String, subtitle: String) {
+fun WhatsAppProfilePreview(name: String, phone: String, onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .width(280.dp)
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(0.dp), // WhatsApp style is rectangular preview
+            color = Color.White
+        ) {
+            Column {
+                Box(modifier = Modifier.fillMaxWidth().height(280.dp).background(Color.LightGray)) {
+                    Icon(
+                        Icons.Default.Person, 
+                        contentDescription = null, 
+                        modifier = Modifier.fillMaxSize().padding(48.dp),
+                        tint = Color.Gray
+                    )
+                    Text(
+                        text = name,
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .background(Color.Black.copy(alpha = 0.3f))
+                            .padding(8.dp)
+                            .fillMaxWidth()
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    IconButton(onClick = {}) { Icon(Icons.Default.Message, contentDescription = null, tint = WhatsAppGreen) }
+                    IconButton(onClick = {}) { Icon(Icons.Default.Call, contentDescription = null, tint = WhatsAppGreen) }
+                    IconButton(onClick = {}) { Icon(Icons.Default.VideoCall, contentDescription = null, tint = WhatsAppGreen) }
+                    IconButton(onClick = {}) { Icon(Icons.Default.Info, contentDescription = null, tint = WhatsAppGreen) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WhatsAppChatStyleItem(name: String, phone: String, onImageClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(50.dp)
+                .size(52.dp)
                 .clip(CircleShape)
-                .background(WhatsAppGray),
+                .background(WhatsAppGray)
+                .clickable { onImageClick() },
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.Person, contentDescription = null, tint = WhatsAppDarkGray)
+            Icon(Icons.Default.Person, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(30.dp))
         }
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Text(subtitle, color = WhatsAppDarkGray, fontSize = 13.sp)
+            Text(name, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+            Text(phone, color = Color.Gray, fontSize = 14.sp)
         }
-        Text("8:30 PM", color = WhatsAppDarkGray, fontSize = 11.sp)
+        Text("₹299", color = Color(0xFFE67E22), fontWeight = FontWeight.Bold)
     }
 }
 
@@ -197,42 +260,36 @@ fun WhatsAppChatItem(name: String, subtitle: String) {
 fun InfraPayBottomNav() {
     NavigationBar(
         containerColor = Color.White,
-        tonalElevation = 0.dp,
-        modifier = Modifier.height(80.dp)
+        tonalElevation = 8.dp,
+        modifier = Modifier.height(72.dp)
     ) {
         NavigationBarItem(
             selected = true,
             onClick = {},
             icon = { 
-                Surface(
-                    color = ActiveNavBg,
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.padding(bottom = 4.dp)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(ActiveNavBg)
+                        .padding(horizontal = 20.dp, vertical = 4.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Home, 
-                        contentDescription = null, 
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-                        tint = Color.Black
-                    )
+                    Icon(Icons.Default.Home, contentDescription = null, tint = Color.Black)
                 }
             },
-            label = { Text("Home", fontWeight = FontWeight.Bold, fontSize = 12.sp) },
-            colors = NavigationBarItemDefaults.colors(
-                indicatorColor = Color.Transparent
-            )
+            label = { Text("Home", fontWeight = FontWeight.Bold, color = Color.Black) },
+            colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent)
         )
         NavigationBarItem(
             selected = false,
             onClick = {},
             icon = { Icon(Icons.Outlined.History, contentDescription = null) },
-            label = { Text("History", fontSize = 12.sp) }
+            label = { Text("History") }
         )
         NavigationBarItem(
             selected = false,
             onClick = {},
-            icon = { Icon(Icons.Outlined.Face, contentDescription = null) },
-            label = { Text("Support", fontSize = 12.sp) }
+            icon = { Icon(Icons.Outlined.SupportAgent, contentDescription = null) },
+            label = { Text("Support") }
         )
     }
 }

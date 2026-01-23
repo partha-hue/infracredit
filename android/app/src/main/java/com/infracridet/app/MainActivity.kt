@@ -10,14 +10,22 @@ class MainActivity : BridgeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Enable Edge-to-Edge for a more modern Android look
+        // Use modern Edge-to-Edge UI
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        
-        // Make Status Bar and Navigation Bar transparent
         window.apply {
             addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
             statusBarColor = Color.TRANSPARENT
             navigationBarColor = Color.TRANSPARENT
+        }
+    }
+
+    // Handle back button navigation
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (bridge.webView.canGoBack()) {
+            bridge.webView.goBack()
+        } else {
+            super.onBackPressed()
         }
     }
 }

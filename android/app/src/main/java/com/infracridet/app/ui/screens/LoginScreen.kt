@@ -1,7 +1,6 @@
 package com.infracridet.app.ui.screens
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerSize
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
@@ -17,6 +16,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     onLoginSuccess: (role: String) -> Unit,
@@ -67,7 +67,7 @@ fun LoginScreen(
         }
 
         OutlinedTextField(
-            value = if (selectedRole == "Owner") email else email, // Use phone for customer in real app
+            value = email,
             onValueChange = { email = it },
             label = { Text(if (selectedRole == "Owner") "Email Address" else "Phone Number") },
             leadingIcon = { 
