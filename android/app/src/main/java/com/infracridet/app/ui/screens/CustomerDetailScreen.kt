@@ -20,6 +20,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.infracridet.app.ui.theme.WhatsAppGreen
 
+data class Transaction(
+    val amount: String,
+    val date: String,
+    val isCredit: Boolean,
+    val note: String = ""
+)
+
+val dummyTransactions = listOf(
+    Transaction("₹500", "22 Oct, 10:30 AM", true, "Rice and Daal"),
+    Transaction("₹200", "21 Oct, 05:15 PM", false, "G-Pay received"),
+    Transaction("₹150", "20 Oct, 11:00 AM", true, "Mobile Recharge")
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerDetailScreen(
