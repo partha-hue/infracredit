@@ -2,31 +2,21 @@ package com.infracridet.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Primary = Color(0xFF005AC1)
-val OnPrimary = Color(0xFFFFFFFF)
-val PrimaryContainer = Color(0xFFD8E2FF)
-val OnPrimaryContainer = Color(0xFF001A41)
+val WhatsAppGreen = Color(0xFF128C7E)
+val WhatsAppLightGreen = Color(0xFF25D366)
+val WhatsAppBlue = Color(0xFF34B7F1)
+val WhatsAppGray = Color(0xFFF0F2F5)
+val WhatsAppDarkGray = Color(0xFF667781)
 
-val Secondary = Color(0xFF535E78)
-val OnSecondary = Color(0xFFFFFFFF)
-val SecondaryContainer = Color(0xFFD8E2FF)
-val OnSecondaryContainer = Color(0xFF0F1B32)
+val Primary = WhatsAppGreen
+val OnPrimary = Color.White
+val Secondary = Color(0xFF00A884)
+val Background = Color.White
+val Surface = Color.White
+val OnSurface = Color(0xFF111B21)
+val OnBackground = Color(0xFF111B21)
 
-val Tertiary = Color(0xFF006A60)
-val OnTertiary = Color(0xFFFFFFFF)
-val TertiaryContainer = Color(0xFF74F8E5)
-val OnTertiaryContainer = Color(0xFF00201C)
-
-val Error = Color(0xFFBA1A1A)
-val OnError = Color(0xFFFFFFFF)
-val ErrorContainer = Color(0xFFFFDAD6)
-val OnErrorContainer = Color(0xFF410002)
-
-val Background = Color(0xFFFEFBFF)
-val OnBackground = Color(0xFF1B1B1F)
-val Surface = Color(0xFFFEFBFF)
-val OnSurface = Color(0xFF1B1B1F)
-
-val Success = Color(0xFF2E7D32)
-val Pending = Color(0xFFED6C02)
-val Credit = Color(0xFFD32F2F)
+val Success = Color(0xFF25D366)
+val Pending = Color(0xFFFFBC2D)
+val Credit = Color(0xFFF15C5C)
+val NeutralBackground = Color(0xFFF7F8FA)

@@ -5,9 +5,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,263 +19,271 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.infracridet.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     shopName: String,
-    totalDue: String,
-    totalCollected: String,
     onAddCustomer: () -> Unit,
     onViewReports: () -> Unit,
     onProfileClick: () -> Unit
 ) {
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { 
-                    Text(
-                        shopName, 
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold 
-                    ) 
-                },
-                actions = {
-                    IconButton(onClick = onProfileClick) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    shopName.take(1).uppercase(),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
+            Column(modifier = Modifier.background(WhatsAppGreen)) {
+                TopAppBar(
+                    title = { 
+                        Text(
+                            "InfraPay", 
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        ) 
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = WhatsAppGreen
+                    ),
+                    actions = {
+                        IconButton(onClick = {}) { Icon(Icons.Outlined.QrCodeScanner, contentDescription = null, tint = Color.White) }
+                        IconButton(onClick = {}) { Icon(Icons.Outlined.PhotoCamera, contentDescription = null, tint = Color.White) }
+                        IconButton(onClick = onProfileClick) { Icon(Icons.Default.MoreVert, contentDescription = null, tint = Color.White) }
+                    }
+                )
+                
+                // WhatsApp Style Search Bar
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    color = WhatsAppGray
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = WhatsAppDarkGray, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text("Ask Meta AI or Search", color = WhatsAppDarkGray, fontSize = 14.sp)
                     }
                 }
-            )
+
+                // Filter Chips
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, bottom = 12.dp, top = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    WhatsAppChip("All", isSelected = true)
+                    WhatsAppChip("Unread")
+                    WhatsAppChip("Favorites")
+                    WhatsAppChip("Groups")
+                }
+            }
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
+            FloatingActionButton(
                 onClick = onAddCustomer,
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Add Customer") },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            )
+                containerColor = WhatsAppLightGreen,
+                contentColor = Color.White,
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Default.AddComment, contentDescription = null)
+            }
+        },
+        bottomBar = {
+            WhatsAppBottomNav()
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(padding)
+                .background(Color.White)
         ) {
-            item {
-                SummaryCard(totalDue, totalCollected)
-            }
-            
+            // Service Grid (Image 2 style)
             item {
                 Text(
-                    "Quick Actions",
+                    "Services",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(16.dp)
                 )
-            }
-
-            item {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    QuickActionItem(
-                        icon = Icons.Default.Assessment,
-                        label = "Reports",
-                        modifier = Modifier.weight(1f),
-                        onClick = onViewReports
-                    )
-                    QuickActionItem(
-                        icon = Icons.Default.Calculate,
-                        label = "Calculator",
-                        modifier = Modifier.weight(1f),
-                        onClick = {}
-                    )
-                    QuickActionItem(
-                        icon = Icons.Default.QrCodeScanner,
-                        label = "Scan QR",
-                        modifier = Modifier.weight(1f),
-                        onClick = {}
-                    )
+                    ServiceCard("Mobile", Icons.Outlined.Smartphone, Color(0xFFE3F2FD), Color(0xFF1976D2), Modifier.weight(1f))
+                    ServiceCard("DTH", Icons.Outlined.Tv, Color(0xFFF3E5F5), Color(0xFF7B1FA2), Modifier.weight(1f))
                 }
-            }
-
-            item {
+                Spacer(Modifier.height(12.dp))
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        "Recent Customers",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    TextButton(onClick = {}) {
-                        Text("See All")
+                    ServiceCard("History", Icons.Outlined.ReceiptLong, Color(0xFFE8F5E9), Color(0xFF388E3C), Modifier.weight(1f))
+                    ServiceCard("Help", Icons.Outlined.HelpOutline, Color(0xFFFFF3E0), Color(0xFFF57C00), Modifier.weight(1f))
+                }
+                
+                // Trusted Service Banner
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    color = Color(0xFFF5F6FF),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF3F51B5))
+                        Spacer(Modifier.width(16.dp))
+                        Column {
+                            Text("Trusted Service", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Secure payments and instant confirmation.", fontSize = 12.sp, color = WhatsAppDarkGray)
+                        }
                     }
                 }
             }
 
-            // Dummy list for UI demonstration
-            items(listOf("Rahul Kumar", "Suresh Singh", "Amit Patel")) { name ->
-                CustomerListItem(name = name, balance = "₹450", isDue = true)
-            }
-        }
-    }
-}
-
-@Composable
-fun SummaryCard(due: String, collected: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
-        Column(modifier = Modifier.padding(24.dp)) {
-            Text(
-                "Business Summary",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        due,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        "Total Due",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    )
-                }
-                VerticalDivider(
-                    modifier = Modifier.height(40.dp).padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f)
+            item {
+                Text(
+                    "Your Khatas",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        collected,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        "Collected",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    )
-                }
+            }
+
+            // Chat Style Customer List (Image 1 style)
+            val customers = listOf(
+                "Rahul Kumar" to "Udhaar: ₹450",
+                "Suresh Singh" to "Cleared",
+                "Amit Patel" to "Udhaar: ₹1,200",
+                "Vikram Seth" to "Pending: ₹890"
+            )
+            
+            items(customers) { (name, sub) ->
+                WhatsAppChatItem(name, sub)
             }
         }
     }
 }
 
 @Composable
-fun QuickActionItem(
-    icon: ImageVector,
-    label: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    OutlinedCard(
-        onClick = onClick,
-        modifier = modifier,
-        shape = MaterialTheme.shapes.large
+fun WhatsAppChip(text: String, isSelected: Boolean = false) {
+    Surface(
+        color = if (isSelected) Color(0xFFE7FCE3) else WhatsAppGray,
+        shape = RoundedCornerShape(16.dp),
+        border = if (isSelected) null else null
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            fontSize = 12.sp,
+            color = if (isSelected) Color(0xFF008069) else WhatsAppDarkGray,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+fun ServiceCard(title: String, icon: ImageVector, bgColor: Color, iconColor: Color, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.height(100.dp),
+        color = bgColor,
+        shape = RoundedCornerShape(12.dp)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Medium
-            )
+            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(28.dp))
+            Spacer(Modifier.height(8.dp))
+            Text(title, fontWeight = FontWeight.Medium, fontSize = 14.sp, color = Color.Black)
         }
     }
 }
 
 @Composable
-fun CustomerListItem(name: String, balance: String, isDue: String? = null, isDueBool: Boolean = true) {
-    Surface(
-        onClick = {},
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surface
+fun WhatsAppChatItem(name: String, subtitle: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFE1E1E1)),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.secondaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    name.take(1),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    "Updated 2 mins ago",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    balance,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDueBool) Color(0xFFD32F2F) else Color(0xFF2E7D32)
-                )
-                Text(
-                    if (isDueBool) "Pending" else "Settled",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isDueBool) Color(0xFFD32F2F) else Color(0xFF2E7D32)
-                )
+            Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+        }
+        Spacer(Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(subtitle, color = WhatsAppDarkGray, fontSize = 14.sp)
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text("Yesterday", color = WhatsAppDarkGray, fontSize = 12.sp)
+            if (subtitle.contains("Udhaar")) {
+                Icon(Icons.Default.PushPin, contentDescription = null, tint = WhatsAppDarkGray, modifier = Modifier.size(16.dp))
             }
         }
+    }
+}
+
+@Composable
+fun WhatsAppBottomNav() {
+    NavigationBar(
+        containerColor = Color.White,
+        tonalElevation = 0.dp
+    ) {
+        NavigationBarItem(
+            selected = true,
+            onClick = {},
+            icon = { 
+                Box {
+                    Icon(Icons.Default.Chat, contentDescription = null)
+                    Surface(
+                        color = WhatsAppLightGreen,
+                        shape = CircleShape,
+                        modifier = Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-4).dp)
+                    ) {
+                        Text("21", color = Color.White, fontSize = 8.sp, modifier = Modifier.padding(2.dp))
+                    }
+                }
+            },
+            label = { Text("Chats", fontWeight = FontWeight.Bold) },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = Color.Black,
+                selectedTextColor = Color.Black,
+                indicatorColor = Color(0xFFD9FDD3)
+            )
+        )
+        NavigationBarItem(
+            selected = false,
+            onClick = {},
+            icon = { Icon(Icons.Outlined.Update, contentDescription = null) },
+            label = { Text("Updates") }
+        )
+        NavigationBarItem(
+            selected = false,
+            onClick = {},
+            icon = { Icon(Icons.Outlined.PeopleOutline, contentDescription = null) },
+            label = { Text("Communities") }
+        )
+        NavigationBarItem(
+            selected = false,
+            onClick = {},
+            icon = { Icon(Icons.Outlined.Call, contentDescription = null) },
+            label = { Text("Calls") }
+        )
     }
 }
