@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -13,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,7 +43,7 @@ fun CustomerDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -74,7 +76,7 @@ fun CustomerDetailScreen(
                         ),
                         shape = MaterialTheme.shapes.large
                     ) {
-                        Icon(Icons.Default.ArrowDownward, contentDescription = null)
+                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text("PAYMENT")
                     }
@@ -86,7 +88,7 @@ fun CustomerDetailScreen(
                         ),
                         shape = MaterialTheme.shapes.large
                     ) {
-                        Icon(Icons.Default.ArrowUpward, contentDescription = null)
+                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text("CREDIT")
                     }
@@ -148,7 +150,7 @@ fun BalanceHighlightCard(balance: String) {
             SuggestionChip(
                 onClick = {},
                 label = { Text("Send WhatsApp Reminder") },
-                icon = { Icon(Icons.Default.Notifications, contentDescription = null, size = 18.dp) }
+                icon = { Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(18.dp)) }
             )
         }
     }
@@ -235,11 +237,3 @@ val dummyTransactions = listOf(
     Transaction("₹200", "21 Oct, 05:15 PM", false, "G-Pay received"),
     Transaction("₹150", "20 Oct, 11:00 AM", true, "Mobile Recharge")
 )
-
-private fun Icon(imageVector: ImageVector, contentDescription: String?, size: androidx.compose.ui.unit.Dp) {
-    androidx.compose.material3.Icon(
-        imageVector = imageVector,
-        contentDescription = contentDescription,
-        modifier = Modifier.size(size)
-    )
-}

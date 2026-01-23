@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,7 +26,7 @@ fun CustomerListScreen(
                 title = { Text("My Customers", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -63,10 +63,9 @@ fun CustomerListScreen(
                 )
 
                 items(customers) { (name, balance) ->
-                    CustomerListItem(
+                    WhatsAppChatItem(
                         name = name,
-                        balance = balance,
-                        isDueBool = balance != "₹0"
+                        subtitle = "Balance: $balance"
                     )
                 }
             }
