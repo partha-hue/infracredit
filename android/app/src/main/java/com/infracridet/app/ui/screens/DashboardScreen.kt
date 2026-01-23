@@ -28,7 +28,8 @@ import com.infracridet.app.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    onProfileClick: () -> Unit
+    onProfileClick: () -> Unit,
+    onKhatasClick: () -> Unit
 ) {
     var showProfilePreview by remember { mutableStateOf<Pair<String, String>?>(null) }
 
@@ -77,7 +78,7 @@ fun DashboardScreen(
             }
         },
         bottomBar = {
-            InfraPayBottomNav()
+            InfraPayBottomNav(onKhatasClick = onKhatasClick)
         }
     ) { padding ->
         LazyColumn(
@@ -257,7 +258,7 @@ fun WhatsAppChatStyleItem(name: String, phone: String, onImageClick: () -> Unit)
 }
 
 @Composable
-fun InfraPayBottomNav() {
+fun InfraPayBottomNav(onKhatasClick: () -> Unit = {}) {
     NavigationBar(
         containerColor = Color.White,
         tonalElevation = 8.dp,
@@ -278,6 +279,12 @@ fun InfraPayBottomNav() {
             },
             label = { Text("Home", fontWeight = FontWeight.Bold, color = Color.Black) },
             colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent)
+        )
+        NavigationBarItem(
+            selected = false,
+            onClick = onKhatasClick,
+            icon = { Icon(Icons.Default.Groups, contentDescription = null) },
+            label = { Text("Khatas") }
         )
         NavigationBarItem(
             selected = false,

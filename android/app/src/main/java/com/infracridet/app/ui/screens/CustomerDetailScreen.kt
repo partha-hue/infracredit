@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -14,10 +15,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.infracridet.app.ui.theme.WhatsAppGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,210 +31,133 @@ fun CustomerDetailScreen(
 ) {
     Scaffold(
         topBar = {
-            LargeTopAppBar(
-                title = {
-                    Column {
-                        Text(customerName, fontWeight = FontWeight.Bold)
-                        Text(
-                            phoneNumber,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* Call */ }) {
-                        Icon(Icons.Default.Call, contentDescription = "Call")
-                    }
-                    IconButton(onClick = { /* Share */ }) {
-                        Icon(Icons.Default.Share, contentDescription = "Share")
-                    }
-                }
-            )
+            Surface(shadowElevation = 4.dp) {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(customerName, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text(phoneNumber, fontSize = 12.sp, color = Color.Gray)
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { /* Link to Call API */ }) {
+                            Icon(Icons.Default.Call, contentDescription = "Call", tint = WhatsAppGreen)
+                        }
+                        IconButton(onClick = { /* Link to WhatsApp API */ }) {
+                            Icon(Icons.Default.Share, contentDescription = "Share", tint = WhatsAppGreen)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                )
+            }
         },
         bottomBar = {
-            Surface(
-                tonalElevation = 8.dp,
-                shadowElevation = 8.dp
-            ) {
+            Surface(shadowElevation = 16.dp, color = Color.White) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
                         .navigationBarsPadding(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Button(
                         onClick = { onAddTransaction("Payment") },
-                        modifier = Modifier.weight(1f).height(56.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF2E7D32)
-                        ),
-                        shape = MaterialTheme.shapes.large
+                        modifier = Modifier.weight(1f).height(54.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("PAYMENT")
+                        Text("YOU GOT ₹", fontWeight = FontWeight.Bold)
                     }
                     Button(
                         onClick = { onAddTransaction("Credit") },
-                        modifier = Modifier.weight(1f).height(56.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFD32F2F)
-                        ),
-                        shape = MaterialTheme.shapes.large
+                        modifier = Modifier.weight(1f).height(54.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("CREDIT")
+                        Text("YOU GAVE ₹", fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize().padding(padding).background(Color(0xFFF8F9FA)),
             contentPadding = PaddingValues(16.dp)
         ) {
             item {
-                BalanceHighlightCard(currentBalance)
-            }
-
-            item {
-                Text(
-                    "Transaction History",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 16.dp)
-                )
+                BalanceCard(currentBalance)
+                Spacer(Modifier.height(24.dp))
+                Text("TRANSACTION HISTORY", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Spacer(Modifier.height(8.dp))
             }
 
             items(dummyTransactions) { txn ->
-                TransactionTimelineItem(txn)
+                TimelineItem(txn)
             }
         }
     }
 }
 
 @Composable
-fun BalanceHighlightCard(balance: String) {
-    Card(
+fun BalanceCard(balance: String) {
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        ),
-        shape = MaterialTheme.shapes.extraLarge
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
+        shadowElevation = 2.dp
     ) {
         Column(
             modifier = Modifier.padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                "Current Balance",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text("Net Balance", fontSize = 14.sp, color = Color.Gray)
             Text(
                 balance,
-                style = MaterialTheme.typography.displayMedium,
-                fontWeight = FontWeight.Black,
-                color = if (balance.startsWith("₹-")) Color(0xFF2E7D32) else Color(0xFFD32F2F)
+                fontSize = 36.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = if (balance.contains("-")) Color(0xFFD32F2F) else Color(0xFF2E7D32)
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            SuggestionChip(
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedButton(
                 onClick = {},
-                label = { Text("Send WhatsApp Reminder") },
-                icon = { Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(18.dp)) }
-            )
-        }
-    }
-}
-
-@Composable
-fun TransactionTimelineItem(txn: Transaction) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .clip(CircleShape)
-                    .background(if (txn.isCredit) Color(0xFFD32F2F) else Color(0xFF2E7D32))
-            )
-            Box(
-                modifier = Modifier
-                    .width(2.dp)
-                    .height(60.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant)
-            )
-        }
-        
-        Spacer(modifier = Modifier.width(16.dp))
-        
-        Card(
-            modifier = Modifier.weight(1f),
-            shape = MaterialTheme.shapes.large,
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            border = CardDefaults.outlinedCardBorder()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        if (txn.isCredit) "You Gave (Udhaar)" else "You Got (Payment)",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (txn.isCredit) Color(0xFFD32F2F) else Color(0xFF2E7D32),
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        txn.date,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    txn.amount,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                if (txn.note.isNotEmpty()) {
-                    Text(
-                        txn.note,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
+                shape = RoundedCornerShape(8.dp),
+                border = ButtonDefaults.outlinedButtonBorder.copy(width = 0.5.dp)
+            ) {
+                Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("DOWNLOAD REPORT", fontSize = 12.sp)
             }
         }
     }
 }
 
-data class Transaction(
-    val amount: String,
-    val date: String,
-    val isCredit: Boolean,
-    val note: String = ""
-)
-
-val dummyTransactions = listOf(
-    Transaction("₹500", "22 Oct, 10:30 AM", true, "Rice and Daal"),
-    Transaction("₹200", "21 Oct, 05:15 PM", false, "G-Pay received"),
-    Transaction("₹150", "20 Oct, 11:00 AM", true, "Mobile Recharge")
-)
+@Composable
+fun TimelineItem(txn: Transaction) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(txn.date, fontSize = 11.sp, color = Color.Gray)
+                Text(txn.note.ifEmpty { if (txn.isCredit) "Items Sold" else "Payment Received" }, fontWeight = FontWeight.SemiBold)
+            }
+            Text(
+                txn.amount,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (txn.isCredit) Color(0xFFD32F2F) else Color(0xFF2E7D32)
+            )
+        }
+    }
+}

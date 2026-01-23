@@ -24,8 +24,8 @@ import com.infracridet.app.ui.theme.WhatsAppGreen
 @Composable
 fun CustomerListScreen(
     onBackClick: () -> Unit,
-    onAddFromContacts: () -> Unit,
-    onManualAdd: () -> Unit
+    onAddFromContacts: () -> Unit = {},
+    onManualAdd: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var showProfilePreview by remember { mutableStateOf<Pair<String, String>?>(null) }
@@ -46,7 +46,6 @@ fun CustomerListScreen(
                         }
                     },
                     actions = {
-                        // Advanced Top Action Button
                         IconButton(
                             onClick = onManualAdd,
                             modifier = Modifier
@@ -61,7 +60,6 @@ fun CustomerListScreen(
             }
         },
         floatingActionButton = {
-            // New Feature: Advanced Floating Action Button for Contacts
             ExtendedFloatingActionButton(
                 onClick = onAddFromContacts,
                 containerColor = WhatsAppGreen,
@@ -73,7 +71,6 @@ fun CustomerListScreen(
             )
         },
         bottomBar = {
-            // Reusing the attractive Bottom Nav from Dashboard for consistency
             InfraPayBottomNav()
         }
     ) { padding ->
@@ -81,9 +78,8 @@ fun CustomerListScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFF8F9FA)) // Light background for better contrast
+                .background(Color(0xFFF8F9FA))
         ) {
-            // Advanced Search Section with Spacing
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -101,7 +97,6 @@ fun CustomerListScreen(
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
                     ),
@@ -109,21 +104,18 @@ fun CustomerListScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp)) // Spacing between Search and List
-
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.White, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                     .padding(top = 8.dp)
             ) {
-                // Mock Data - In production, this would come from your Backend API
                 val customers = listOf(
                     "Rahul Kumar" to "9876543210",
                     "Suresh Singh" to "8877665544",
                     "Amit Patel" to "7766554433",
                     "Priya Sharma" to "9988776655"
-                ).filter { it.first.contains(searchQuery, ignoreCase = true) || it.second.contains(searchQuery) }
+                ).filter { it.first.contains(searchQuery, ignoreCase = true) }
 
                 items(customers) { (name, phone) ->
                     WhatsAppChatStyleItem(
@@ -131,23 +123,14 @@ fun CustomerListScreen(
                         phone = phone,
                         onImageClick = { showProfilePreview = name to phone }
                     )
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 72.dp),
-                        thickness = 0.5.dp,
-                        color = Color.LightGray.copy(alpha = 0.5f)
-                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 72.dp), thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.5f))
                 }
-                
-                item { Spacer(modifier = Modifier.height(80.dp)) } // Space for FAB
+                item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
     }
 
     showProfilePreview?.let { (name, phone) ->
-        WhatsAppProfilePreview(
-            name = name,
-            phone = phone,
-            onDismiss = { showProfilePreview = null }
-        )
+        WhatsAppProfilePreview(name = name, phone = phone, onDismiss = { showProfilePreview = null })
     }
 }
